@@ -29,6 +29,10 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
   const archEndRatio = 0.9;    // Where dots end (90% from left)
   const archWidth = archEndRatio - archStartRatio; // Width of curved section
 
+  // Padding for glow overflow (prevents clipping)
+  const padding = 40;
+  const svgHeight = height + (padding * 2); // Extra space top and bottom for glow
+
   // Map time position (0-1) to arch position (archStartRatio to archEndRatio)
   const getPosition = (minutes) => {
     // Clamp minutes to be within the prayer time range
@@ -42,10 +46,13 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
   const getPointOnArch = (t) => {
     const x = t * width;
     
-    // Define Y positions - bigger and steeper
-    const leftY = height * 0.60;   // Left end Y (slightly lower)
-    const rightY = height * 0.55;   // Right end Y (slightly higher)
-    const peakY = height * 0.05;    // Peak Y (much steeper - near top)
+    // Adjust Y positions to account for padding (glow overflow space)
+    const adjustedHeight = height;
+    
+    // Define Y positions - bigger and steeper (relative to adjusted height)
+    const leftY = padding + adjustedHeight * 0.60;   // Left end Y (slightly lower)
+    const rightY = padding + adjustedHeight * 0.55;   // Right end Y (slightly higher)
+    const peakY = padding + adjustedHeight * 0.05;    // Peak Y (much steeper - near top)
     
     // Continuous curve that's steeper in middle, subtle at ends
     // Use quadratic bezier interpolation for smooth curve
@@ -89,10 +96,14 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
   // Ensure it's at least a small value so the white line is visible
   const currentT = Math.max(0.01, currentPosition);
 
-
   return (
     <View style={styles.container}>
-      <Svg width={width} height={height} style={styles.svg}>
+      <Svg 
+        width={width} 
+        height={svgHeight} 
+        style={styles.svg} 
+        overflow="visible"
+      >
         <Defs>
           {/* Gradient from #26282C to white, left to right */}
           <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -101,26 +112,26 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           </LinearGradient>
           
           {/* Multiple blur filters for layered glow effect (simulating CSS box-shadow) */}
-          {/* Much larger filter region to prevent visible box edges */}
-          <Filter id="glowBlur1" x="-200%" y="-200%" width="500%" height="500%">
+          {/* Extremely large filter region to completely eliminate visible box edges */}
+          <Filter id="glowBlur1" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="5" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur2" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur2" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="10" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur3" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur3" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="15" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur4" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur4" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="20" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur5" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur5" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="25" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur6" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur6" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="30" edgeMode="none" />
           </Filter>
-          <Filter id="glowBlur7" x="-200%" y="-200%" width="500%" height="500%">
+          <Filter id="glowBlur7" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="35" edgeMode="none" />
           </Filter>
         </Defs>
@@ -243,9 +254,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 20,
+    overflow: 'visible',
+    marginVertical: -20, // Negative margin to allow glow overflow
   },
   svg: {
     alignSelf: 'center',
+    overflow: 'visible',
   },
 });
 
