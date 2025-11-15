@@ -1,8 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Dimensions } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import * as Location from 'expo-location';
+import * as Adhan from 'adhan';
 import PrayerArch from './components/PrayerArch';
 import Timer from './components/Timer';
 
@@ -18,6 +20,12 @@ const formatTime = (date) => {
   return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
 };
 
+// Format Date object to "H:MM AM/PM" format
+const formatPrayerTime = (date) => {
+  if (!date) return '';
+  return formatTime(date);
+};
+
 export default function App() {
   // Load Space Grotesk font
   const [fontsLoaded] = useFonts({
@@ -29,21 +37,64 @@ export default function App() {
   // Prayer names
   const prayerNames = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
   
-  // Sample prayer times (matching the screenshot)
-  const prayerTimes = [
-    '5:22 AM',  // Fajr
-    '6:37 AM',  // Sunrise
-    '11:45 AM', // Dhuhr
-    '2:28 PM',  // Asr
-    '4:50 PM',  // Maghrib
-    '6:06 PM',  // Isha
-  ];
+  // State for location and prayer times
+  const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState(null);
+  const [prayerTimes, setPrayerTimes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
     return formatTime(now);
   });
+
+  // Request location permission and get location
+  useEffect(() => {
+    (async () => {
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setLocationError('Location permission denied');
+          setLoading(false);
+          return;
+        }
+
+        let locationData = await Location.getCurrentPositionAsync({});
+        setLocation(locationData);
+      } catch (error) {
+        setLocationError(error.message);
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // Calculate prayer times when location is available
+  useEffect(() => {
+    if (location) {
+      const coordinates = new Adhan.Coordinates(
+        location.coords.latitude,
+        location.coords.longitude
+      );
+      
+      const params = Adhan.CalculationMethod.MuslimWorldLeague();
+      const date = new Date();
+      const prayerTimesData = new Adhan.PrayerTimes(coordinates, date, params);
+      
+      // Format prayer times
+      const formattedTimes = [
+        formatPrayerTime(prayerTimesData.fajr),
+        formatPrayerTime(prayerTimesData.sunrise),
+        formatPrayerTime(prayerTimesData.dhuhr),
+        formatPrayerTime(prayerTimesData.asr),
+        formatPrayerTime(prayerTimesData.maghrib),
+        formatPrayerTime(prayerTimesData.isha),
+      ];
+      
+      setPrayerTimes(formattedTimes);
+      setLoading(false);
+    }
+  }, [location]);
 
   // Update current time every 10 seconds for smoother movement
   useEffect(() => {
@@ -57,8 +108,25 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  if (!fontsLoaded) {
-    return null; // Or a loading screen
+  if (!fontsLoaded || loading) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <ActivityIndicator size="large" color="#fff" />
+        {locationError && (
+          <Text style={styles.errorText}>{locationError}</Text>
+        )}
+      </View>
+    );
+  }
+
+  if (locationError && prayerTimes.length === 0) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>
+          Unable to get location. Please enable location services.
+        </Text>
+      </View>
+    );
   }
 
   return (
@@ -67,7 +135,7 @@ export default function App() {
       <PrayerArch 
         prayerTimes={prayerTimes}
         currentTime={currentTime}
-        width={350}
+        width={Dimensions.get('window').width}
         height={200}
       />
       
@@ -82,9 +150,20 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: '#0B0B0E',
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 60,
+  },
+  centerContent: {
+    justifyContent: 'center',
+  },
+  errorText: {
+    color: '#999',
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    marginTop: 20,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
 });

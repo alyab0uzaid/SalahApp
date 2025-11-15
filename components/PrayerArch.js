@@ -25,21 +25,23 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
   const timeRange = maxTime - minTime;
 
   // Arch configuration - continuous curve, steeper in middle, subtle at ends
-  const archStartRatio = 0.1;  // Where dots start (10% from left)
-  const archEndRatio = 0.9;    // Where dots end (90% from left)
-  const archWidth = archEndRatio - archStartRatio; // Width of curved section
+  // Arch line goes edge to edge (0 to 1), but dots have padding
+  const dotStartRatio = 0.05;  // Where dots start (5% from left - padding for dots)
+  const dotEndRatio = 0.95;     // Where dots end (95% from left - padding for dots)
+  const dotWidth = dotEndRatio - dotStartRatio; // Width for dot positioning
 
   // Padding for glow overflow (prevents clipping)
   const padding = 40;
   const svgHeight = height + (padding * 2); // Extra space top and bottom for glow
 
-  // Map time position (0-1) to arch position (archStartRatio to archEndRatio)
+  // Map time position (0-1) to arch position (dotStartRatio to dotEndRatio for dots)
+  // But arch line itself goes from 0 to 1 (edge to edge)
   const getPosition = (minutes) => {
     // Clamp minutes to be within the prayer time range
     const clampedMinutes = Math.max(minTime, Math.min(maxTime, minutes));
     const timePosition = (clampedMinutes - minTime) / timeRange; // 0 to 1
-    // Map to arch section only
-    return archStartRatio + (timePosition * archWidth);
+    // Map to dot section only (with padding)
+    return dotStartRatio + (timePosition * dotWidth);
   };
 
   // Calculate point on arch - continuous curve, never completely flat
@@ -172,7 +174,7 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
               cx={point.x}
               cy={point.y}
               r={7}
-              fill={isPast ? "#666" : "#000"}
+                     fill={isPast ? "#666" : "#0B0B0E"}
               stroke="#666"
               strokeWidth={isPast ? "0" : "2"}
             />
