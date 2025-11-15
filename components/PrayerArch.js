@@ -142,8 +142,8 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
         <Path
           d={generateArchPath(1)}
           fill="none"
-          stroke="#444"
-          strokeWidth="5"
+          stroke="#232327"
+          strokeWidth="7"
           strokeLinecap="round"
         />
         
@@ -152,7 +152,7 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           d={generateArchPath(currentT)}
           fill="none"
           stroke="url(#progressGradient)"
-          strokeWidth="5"
+          strokeWidth="7"
           strokeLinecap="round"
         />
         
@@ -169,15 +169,37 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           }
           
           return (
-            <Circle
-              key={index}
-              cx={point.x}
-              cy={point.y}
-              r={7}
-                     fill={isPast ? "#666" : "#0B0B0E"}
-              stroke="#666"
-              strokeWidth={isPast ? "0" : "2"}
-            />
+            <React.Fragment key={index}>
+              {isPast ? (
+                <Circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={9}
+                  fill="#858585"
+                  stroke="#0B0B0E"
+                  strokeWidth="2"
+                />
+              ) : (
+                <>
+                  {/* Outer circle with background fill */}
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={9}
+                    fill="#0B0B0E"
+                  />
+                  {/* Inner circle with stroke to create inside stroke effect */}
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={7.5}
+                    fill="none"
+                    stroke="#858585"
+                    strokeWidth="3"
+                  />
+                </>
+              )}
+            </React.Fragment>
           );
         })}
 

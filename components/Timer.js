@@ -106,21 +106,21 @@ const styles = StyleSheet.create({
   },
   prayerLabel: {
     color: '#999',
-    fontSize: 16,
+    fontSize: 20,
     fontFamily: 'SpaceGrotesk_500Medium',
-    marginBottom: 2,
+    marginBottom: 0,
   },
   countdown: {
     color: '#fff',
     fontSize: 64,
     fontFamily: 'SpaceGrotesk_500Medium',
     letterSpacing: 2,
-    marginBottom: 2,
+    marginBottom: 0,
     fontVariant: ['tabular-nums'], // Makes numbers equal width to prevent shifting
   },
   prayerTime: {
     color: '#999',
-    fontSize: 16,
+    fontSize: 20,
     fontFamily: 'SpaceGrotesk_500Medium',
   },
 });
