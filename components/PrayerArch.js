@@ -176,8 +176,6 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
                   cy={point.y}
                   r={9}
                   fill="#858585"
-                  stroke="#0B0B0E"
-                  strokeWidth="2"
                 />
               ) : (
                 <>
@@ -186,7 +184,7 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
                     cx={point.x}
                     cy={point.y}
                     r={9}
-                    fill="#0B0B0E"
+                    fill="#0A090E"
                   />
                   {/* Inner circle with stroke to create inside stroke effect */}
                   <Circle
