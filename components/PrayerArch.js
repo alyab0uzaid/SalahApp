@@ -252,10 +252,12 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 20,
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+    paddingBottom: 0,
     overflow: 'visible',
     marginVertical: -20, // Negative margin to allow glow overflow
+    marginBottom: -100, // Large negative margin to compensate for extra SVG height from glow
   },
   svg: {
     alignSelf: 'center',

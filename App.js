@@ -1,7 +1,10 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { useState, useEffect } from 'react';
+import { useFonts } from 'expo-font';
+import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import PrayerArch from './components/PrayerArch';
+import Timer from './components/Timer';
 
 // Format time to "H:MM AM/PM" format
 const formatTime = (date) => {
@@ -16,6 +19,16 @@ const formatTime = (date) => {
 };
 
 export default function App() {
+  // Load Space Grotesk font
+  const [fontsLoaded] = useFonts({
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_700Bold,
+  });
+
+  // Prayer names
+  const prayerNames = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+  
   // Sample prayer times (matching the screenshot)
   const prayerTimes = [
     '5:22 AM',  // Fajr
@@ -44,6 +57,10 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  if (!fontsLoaded) {
+    return null; // Or a loading screen
+  }
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -52,6 +69,11 @@ export default function App() {
         currentTime={currentTime}
         width={350}
         height={200}
+      />
+      
+      <Timer 
+        prayerTimes={prayerTimes}
+        prayerNames={prayerNames}
       />
     </View>
   );
