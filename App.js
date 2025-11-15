@@ -3,6 +3,7 @@ import { StyleSheet, View, Text, ActivityIndicator, Dimensions } from 'react-nat
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import PrayerArch from './components/PrayerArch';
@@ -27,11 +28,13 @@ const formatPrayerTime = (date) => {
 };
 
 export default function App() {
-  // Load Space Grotesk font
+  // Load Space Grotesk and Space Mono fonts
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
     SpaceGrotesk_700Bold,
+    SpaceMono_400Regular,
+    SpaceMono_700Bold,
   });
 
   // Prayer names

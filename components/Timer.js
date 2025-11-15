@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   prayerLabel: {
     color: '#999',
     fontSize: 16,
-    fontFamily: 'SpaceGrotesk_400Regular',
+    fontFamily: 'SpaceGrotesk_500Medium',
     marginBottom: 2,
   },
   countdown: {
@@ -116,11 +116,12 @@ const styles = StyleSheet.create({
     fontFamily: 'SpaceGrotesk_500Medium',
     letterSpacing: 2,
     marginBottom: 2,
+    fontVariant: ['tabular-nums'], // Makes numbers equal width to prevent shifting
   },
   prayerTime: {
     color: '#999',
     fontSize: 16,
-    fontFamily: 'SpaceGrotesk_400Regular',
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
 });
 
