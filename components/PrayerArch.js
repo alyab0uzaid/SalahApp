@@ -26,8 +26,8 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
 
   // Arch configuration - continuous curve, steeper in middle, subtle at ends
   // Arch line goes edge to edge (0 to 1), but dots have padding
-  const dotStartRatio = 0.05;  // Where dots start (5% from left - padding for dots)
-  const dotEndRatio = 0.95;     // Where dots end (95% from left - padding for dots)
+  const dotStartRatio = 0.10;  // Where dots start (10% from left - padding for dots)
+  const dotEndRatio = 0.90;     // Where dots end (90% from left - padding for dots)
   const dotWidth = dotEndRatio - dotStartRatio; // Width for dot positioning
 
   // Padding for glow overflow (prevents clipping)
