@@ -56,18 +56,85 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
+        console.log('Location effect started');
+
+        // Check existing permission first – helpful on reloads
+        const existing = await Location.getForegroundPermissionsAsync();
+        console.log('Existing permission:', existing);
+
+        // If we already have permission, skip the prompt
+        let status = existing.status;
+
+        if (status !== 'granted' && existing.canAskAgain) {
+          console.log('Requesting permissions…');
+          const requested = await Location.requestForegroundPermissionsAsync();
+          console.log('Request result:', requested);
+          status = requested.status;
+        }
+
         if (status !== 'granted') {
-          setLocationError('Location permission denied');
+          console.log('Permission not granted, status =', status);
+          // Either denied or cannot ask again – tell user to change browser/device settings
+          setLocationError(
+            status === 'denied'
+              ? 'Location permission denied. Please enable location access for this app in your browser or device settings.'
+              : 'Location permission unavailable. Please enable location access for this app in your browser or device settings.'
+          );
           setLoading(false);
           return;
         }
 
-        let locationData = await Location.getCurrentPositionAsync({});
+        // Helper to enforce a hard timeout so the UI never spins forever
+        const withTimeout = (promise, ms) =>
+          Promise.race([
+            promise,
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Location request timed out')), ms)
+            ),
+          ]);
+
+        let locationData;
+
+        // Try to get current position with sane options and a hard timeout
+        try {
+          console.log('Getting current position…');
+          locationData = await withTimeout(
+            Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Balanced,
+              maximumAge: 60000,
+            }),
+            15000 // 15 seconds max
+          );
+          console.log('Got current position:', locationData);
+        } catch (positionError) {
+          console.log('Error getting current position:', positionError);
+          // If the browser / device can't get a fresh fix, fall back to last known position
+          try {
+            const lastKnown = await Location.getLastKnownPositionAsync();
+            console.log('Last known position:', lastKnown);
+            if (lastKnown) {
+              locationData = lastKnown;
+            } else {
+              throw positionError;
+            }
+          } catch (fallbackError) {
+            console.log('Fallback error:', fallbackError);
+            setLocationError(
+              fallbackError.message ||
+                'Unable to get location. Make sure location is enabled and reload the app.'
+            );
+            setLoading(false);
+            return;
+          }
+        }
+
         setLocation(locationData);
+        console.log('Location stored in state');
       } catch (error) {
+        console.log('Outer location error:', error);
         setLocationError(error.message);
         setLoading(false);
+        return;
       }
     })();
   }, []);
@@ -126,7 +193,10 @@ export default function App() {
     return (
       <View style={[styles.container, styles.centerContent]}>
         <Text style={styles.errorText}>
-          Unable to get location. Please enable location services.
+          Unable to get location.
+        </Text>
+        <Text style={styles.errorText}>
+          {locationError}
         </Text>
       </View>
     );
@@ -135,14 +205,13 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      <PrayerArch 
+      <PrayerArch
         prayerTimes={prayerTimes}
         currentTime={currentTime}
         width={Dimensions.get('window').width}
         height={200}
       />
-      
-      <Timer 
+      <Timer
         prayerTimes={prayerTimes}
         prayerNames={prayerNames}
       />
