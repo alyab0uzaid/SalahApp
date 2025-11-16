@@ -3,11 +3,17 @@ import { View, StyleSheet } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur } from 'react-native-svg';
 
 const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => {
-  // Convert time string (e.g., "5:22 AM") to minutes since midnight
+  // Convert time string (e.g., "5:22 AM" or "5:22:30 AM") to minutes since midnight
+  // Handles both "H:MM" and "H:MM:SS" formats
   const timeToMinutes = (timeStr) => {
     const [time, period] = timeStr.split(' ');
-    const [hours, minutes] = time.split(':').map(Number);
-    let totalMinutes = hours * 60 + minutes;
+    const parts = time.split(':').map(Number);
+    const hours = parts[0];
+    const minutes = parts[1] || 0;
+    const seconds = parts[2] || 0;
+    
+    // Convert to total minutes including fractional seconds
+    let totalMinutes = hours * 60 + minutes + (seconds / 60);
     if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
     if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
     return totalMinutes;
@@ -174,7 +180,7 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           d={generateArchPath(1)}
           fill="none"
           stroke="#232327"
-          strokeWidth="7"
+          strokeWidth="5"
           strokeLinecap="round"
         />
         
@@ -184,63 +190,60 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
             d={generateArchPath(currentT)}
             fill="none"
             stroke="url(#progressGradient)"
-            strokeWidth="7"
+            strokeWidth="5"
             strokeLinecap="round"
           />
         )}
         
-        {/* Prayer time dots - filled if past, stroked if future */}
+        {/* Past prayer time dots - filled (rendered behind current indicator) */}
         {prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
+          
           // Determine if the prayer time is in the past relative to the
           // current clock time.
           //
           // Between midnight and Fajr we conceptually "reset" the day, so
           // nothing is considered past yet and all dots appear as future.
+          // A prayer becomes "past" when the current time equals or passes it,
+          // so unfilled circles stay in front until the exact moment it equals.
           let isPast = false;
           if (rawCurrentMinutes >= minTime) {
-            // Regular case: from Fajr until midnight, anything earlier today is past
+            // Regular case: from Fajr until midnight, anything earlier or equal today is past
+            // Use >= so it switches at the exact moment it equals the prayer time
             isPast = rawCurrentMinutes >= minutes;
           }
           
-          // Don't show regular dots if current time is very close, but only when
-          // the current-time indicator is actually visible.
-          if (showCircle && Math.abs(position - clampedCurrentPosition) < 0.02) {
+          // Only render past circles here (future ones will be rendered after current indicator)
+          if (!isPast) return null;
+          
+          // Don't show regular dots if current time is extremely close (within ~1 minute),
+          // but only when the current-time indicator is actually visible.
+          if (showCircle && Math.abs(position - clampedCurrentPosition) < 0.002) {
             return null;
           }
           
+          // Calculate fade-in opacity as current time passes prayer time
+          // Fade in over the first 3 minutes after the prayer time
+          const fadeWindowMinutes = 3;
+          const minutesAfterPrayer = rawCurrentMinutes - minutes;
+          let opacity = 1;
+          
+          if (minutesAfterPrayer >= 0 && minutesAfterPrayer <= fadeWindowMinutes) {
+            // Fade from 0 to 1 over the fade window
+            opacity = Math.min(1, minutesAfterPrayer / fadeWindowMinutes);
+          }
+          
           return (
-            <React.Fragment key={index}>
-              {isPast ? (
-                <Circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={9}
-                  fill="#858585"
-                />
-              ) : (
-                <>
-                  {/* Outer circle with background fill */}
-                  <Circle
-                    cx={point.x}
-                    cy={point.y}
-                    r={9}
-                    fill="#0A090E"
-                  />
-                  {/* Inner circle with stroke to create inside stroke effect */}
-                  <Circle
-                    cx={point.x}
-                    cy={point.y}
-                    r={7.5}
-                    fill="none"
-                    stroke="#858585"
-                    strokeWidth="3"
-                  />
-                </>
-              )}
-            </React.Fragment>
+            <Circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r={9}
+              fill="#858585"
+              opacity={opacity}
+            />
           );
         })}
 
@@ -313,6 +316,55 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
             />
           </>
         )}
+
+        {/* Future prayer time dots - stroked (rendered on top of current indicator) */}
+        {prayerTimes.map((time, index) => {
+          const minutes = timeToMinutes(time);
+          const position = getDotPosition(minutes);
+          const point = getPointOnArch(position);
+          
+          // Determine if the prayer time is in the past relative to the
+          // current clock time.
+          // A prayer becomes "past" when the current time equals or passes it,
+          // so unfilled circles stay in front until the exact moment it equals.
+          let isPast = false;
+          if (rawCurrentMinutes >= minTime) {
+            // Regular case: from Fajr until midnight, anything earlier or equal today is past
+            // Use >= so it switches at the exact moment it equals the prayer time
+            isPast = rawCurrentMinutes >= minutes;
+          }
+          
+          // Only render future circles here (past ones are rendered before current indicator)
+          // Don't hide based on position - only hide when time has actually passed
+          if (isPast) return null;
+          
+          // Calculate fade opacity as current time approaches prayer time
+          // Fade out over the last 3 minutes before the prayer time
+          const fadeWindowMinutes = 3;
+          const minutesUntilPrayer = minutes - rawCurrentMinutes;
+          let opacity = 1;
+          
+          if (minutesUntilPrayer <= fadeWindowMinutes && minutesUntilPrayer > 0) {
+            // Fade from 1 to 0 over the fade window
+            opacity = minutesUntilPrayer / fadeWindowMinutes;
+          } else if (minutesUntilPrayer <= 0) {
+            // Fully faded when time equals or passes
+            opacity = 0;
+          }
+          
+          return (
+            <Circle
+              key={index}
+              cx={point.x}
+              cy={point.y}
+              r={9}
+              fill="none"
+              stroke="#858585"
+              strokeWidth="2"
+              opacity={opacity}
+            />
+          );
+        })}
       </Svg>
     </View>
   );

@@ -273,4 +273,47 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
+  timeSliderContainer: {
+    width: '90%',
+    marginBottom: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#15141A',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#23232A',
+  },
+  timeSliderLabel: {
+    color: '#999',
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    marginBottom: 8,
+  },
+  timeSliderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  timeDisplay: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: 'SpaceMono_400Regular',
+    letterSpacing: 1,
+  },
+  slider: {
+    width: '100%',
+    height: 40,
+  },
+  resetButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#23232A',
+    borderRadius: 8,
+  },
+  resetButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_500Medium',
+  },
 });
