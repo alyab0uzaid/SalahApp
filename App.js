@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Dimensions } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -8,6 +8,8 @@ import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import PrayerArch from './components/PrayerArch';
 import Timer from './components/Timer';
+import PrayerList from './components/PrayerList';
+import BottomNav from './components/BottomNav';
 
 // Format time to "H:MM AM/PM" format
 const formatTime = (date) => {
@@ -45,6 +47,7 @@ export default function App() {
   const [locationError, setLocationError] = useState(null);
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('home');
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -204,17 +207,33 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <StatusBar style="light" />
-      <PrayerArch
-        prayerTimes={prayerTimes}
-        currentTime={currentTime}
-        width={Dimensions.get('window').width}
-        height={200}
-      />
-      <Timer
-        prayerTimes={prayerTimes}
-        prayerNames={prayerNames}
-      />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        <PrayerArch
+          prayerTimes={prayerTimes}
+          currentTime={currentTime}
+          width={Dimensions.get('window').width}
+          height={200}
+        />
+        <Timer
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+        />
+        <PrayerList
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+        />
+      </ScrollView>
+      <View style={styles.bottomNavWrapper}>
+        <BottomNav
+          activeTab={activeTab}
+          onTabPress={setActiveTab}
+        />
+      </View>
     </View>
   );
 }
@@ -224,8 +243,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0A090E',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: 0,
+  },
+  content: {
+    alignItems: 'center',
     justifyContent: 'flex-start',
+    width: '100%',
+    flex: 1,
     paddingTop: 60,
+  },
+  scroll: {
+    flex: 1,
+    width: '100%',
+  },
+  bottomNavWrapper: {
+    width: '100%',
+    backgroundColor: '#0A090E',
+    paddingBottom: 8,
   },
   centerContent: {
     justifyContent: 'center',
