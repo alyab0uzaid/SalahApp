@@ -1,13 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
+import { FontAwesome } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import PrayerArch from './components/PrayerArch';
-import Timer from './components/Timer';
 import PrayerList from './components/PrayerList';
 import BottomNav from './components/BottomNav';
 
@@ -45,6 +45,7 @@ export default function App() {
   // State for location and prayer times
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [locationName, setLocationName] = useState(null);
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
@@ -133,6 +134,25 @@ export default function App() {
 
         setLocation(locationData);
         console.log('Location stored in state');
+        
+        // Reverse geocode to get location name
+        try {
+          const reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: locationData.coords.latitude,
+            longitude: locationData.coords.longitude,
+          });
+          
+          if (reverseGeocode && reverseGeocode.length > 0) {
+            const address = reverseGeocode[0];
+            // Try to get city, or use locality, or subAdministrativeArea
+            const city = address.city || address.locality || address.subAdministrativeArea || address.administrativeArea || 'Unknown';
+            setLocationName(city);
+          }
+        } catch (geocodeError) {
+          console.log('Geocoding error:', geocodeError);
+          // Fallback to coordinates if geocoding fails
+          setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
+        }
       } catch (error) {
         console.log('Outer location error:', error);
         setLocationError(error.message);
@@ -213,19 +233,28 @@ export default function App() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {/* Location tag */}
+        {locationName && (
+          <View style={styles.locationTag}>
+            <FontAwesome
+              name="location-arrow"
+              size={16}
+              color="#999"
+            />
+            <Text style={styles.locationText}>{locationName}</Text>
+          </View>
+        )}
         <PrayerArch
           prayerTimes={prayerTimes}
           currentTime={currentTime}
+          prayerNames={prayerNames}
           width={Dimensions.get('window').width}
           height={200}
-        />
-        <Timer
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
         />
         <PrayerList
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
+          currentTime={currentTime}
         />
       </ScrollView>
       <View style={styles.bottomNavWrapper}>
@@ -272,6 +301,25 @@ const styles = StyleSheet.create({
     marginTop: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
+  },
+  locationTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#15141A',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#23232A',
+    alignSelf: 'center',
+  },
+  locationText: {
+    color: '#999',
+    fontSize: 14,
+    fontFamily: 'SpaceGrotesk_400Regular',
+    marginLeft: 6,
   },
   timeSliderContainer: {
     width: '90%',

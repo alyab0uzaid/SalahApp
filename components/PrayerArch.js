@@ -1,8 +1,8 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur } from 'react-native-svg';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, Text } from 'react-native';
+import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 
-const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => {
+const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, height = 200 }) => {
   // Convert time string (e.g., "5:22 AM" or "5:22:30 AM") to minutes since midnight
   // Handles both "H:MM" and "H:MM:SS" formats
   const timeToMinutes = (timeStr) => {
@@ -21,6 +21,62 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
 
   // Convert current time to minutes
   const rawCurrentMinutes = timeToMinutes(currentTime);
+
+  // Timer state and logic
+  const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [nextPrayer, setNextPrayer] = useState({ name: '', time: '' });
+
+  // Calculate next prayer and countdown
+  useEffect(() => {
+    const updateTimer = () => {
+      const now = new Date();
+      const currentMinutes = now.getHours() * 60 + now.getMinutes();
+      const currentSeconds = now.getSeconds();
+      
+      // Convert all prayer times to minutes
+      const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
+      
+      // Find next prayer
+      let nextPrayerIndex = -1;
+      let nextPrayerMinutes = -1;
+      
+      for (let i = 0; i < timesInMinutes.length; i++) {
+        if (timesInMinutes[i] > currentMinutes) {
+          nextPrayerIndex = i;
+          nextPrayerMinutes = timesInMinutes[i];
+          break;
+        }
+      }
+      
+      // If no prayer found today, use first prayer tomorrow
+      if (nextPrayerIndex === -1) {
+        nextPrayerIndex = 0;
+        nextPrayerMinutes = timesInMinutes[0] + (24 * 60); // Add 24 hours
+      }
+      
+      // Calculate time difference
+      const totalMinutesUntil = nextPrayerMinutes - currentMinutes;
+      const totalSecondsUntil = (totalMinutesUntil * 60) - currentSeconds;
+      
+      const hours = Math.floor(totalSecondsUntil / 3600);
+      const minutes = Math.floor((totalSecondsUntil % 3600) / 60);
+      const seconds = totalSecondsUntil % 60;
+      
+      setCountdown({ hours, minutes, seconds });
+      setNextPrayer({
+        name: prayerNames[nextPrayerIndex] || '',
+        time: prayerTimes[nextPrayerIndex] || ''
+      });
+    };
+
+    // Update immediately
+    updateTimer();
+
+    // Update every second for countdown
+    const interval = setInterval(updateTimer, 1000);
+
+    return () => clearInterval(interval);
+  }, [prayerTimes, prayerNames]);
 
   // Get all prayer times in minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
@@ -173,6 +229,25 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           <Filter id="glowBlur7" x="-500%" y="-500%" width="1100%" height="1100%">
             <FeGaussianBlur stdDeviation="35" edgeMode="none" />
           </Filter>
+          
+          {/* Frosted glass filter for prayer time circles */}
+          <Filter id="frostedGlass" x="-50%" y="-50%" width="200%" height="200%">
+            <FeGaussianBlur stdDeviation="3" edgeMode="none" />
+          </Filter>
+          
+          {/* Liquid glass effect - radial gradient with highlight - more translucent */}
+          <RadialGradient id="liquidGlass" cx="30%" cy="30%">
+            <Stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
+            <Stop offset="50%" stopColor="rgba(255, 255, 255, 0.08)" />
+            <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
+          </RadialGradient>
+          
+          {/* Liquid glass effect for past circles - more translucent */}
+          <RadialGradient id="liquidGlassPast" cx="30%" cy="30%">
+            <Stop offset="0%" stopColor="rgba(200, 200, 200, 0.2)" />
+            <Stop offset="50%" stopColor="rgba(150, 150, 150, 0.08)" />
+            <Stop offset="100%" stopColor="rgba(100, 100, 100, 0)" />
+          </RadialGradient>
         </Defs>
 
         {/* Main arch line - dark gray (full path) */}
@@ -236,14 +311,26 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           }
           
           return (
-            <Circle
-              key={index}
-              cx={point.x}
-              cy={point.y}
-              r={9}
-              fill="#858585"
-              opacity={opacity}
-            />
+            <G key={`past-${index}`}>
+              {/* Base glass circle - very translucent */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={9}
+                fill="rgba(255, 255, 255, 0.08)"
+                stroke="rgba(255, 255, 255, 0.25)"
+                strokeWidth="1"
+                opacity={opacity}
+              />
+              {/* Liquid glass highlight overlay */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={9}
+                fill="url(#liquidGlassPast)"
+                opacity={opacity * 0.5}
+              />
+            </G>
           );
         })}
 
@@ -353,19 +440,41 @@ const PrayerArch = ({ prayerTimes, currentTime, width = 350, height = 200 }) => 
           }
           
           return (
-            <Circle
-              key={index}
-              cx={point.x}
-              cy={point.y}
-              r={9}
-              fill="none"
-              stroke="#858585"
-              strokeWidth="2"
-              opacity={opacity}
-            />
+            <G key={`future-${index}`}>
+              {/* Base glass circle - stroke only, matching filled style */}
+              {/* Rendered after current indicator to ensure it's on top */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={9}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.35)"
+                strokeWidth="3"
+                opacity={opacity}
+              />
+              {/* Liquid glass highlight overlay - stroke only */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={9}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.2)"
+                strokeWidth="1.5"
+                opacity={opacity * 0.5}
+              />
+            </G>
           );
         })}
       </Svg>
+      
+      {/* Timer component integrated */}
+      <View style={styles.timerContainer}>
+        <Text style={styles.prayerLabel}>{nextPrayer.name} in</Text>
+        <Text style={styles.countdown}>
+          {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
+        </Text>
+        <Text style={styles.prayerTime}>{nextPrayer.time}</Text>
+      </View>
     </View>
   );
 };
@@ -383,6 +492,29 @@ const styles = StyleSheet.create({
   svg: {
     alignSelf: 'center',
     overflow: 'visible',
+  },
+  timerContainer: {
+    alignItems: 'center',
+    marginTop: -170,
+  },
+  prayerLabel: {
+    color: '#999',
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    marginBottom: -8,
+  },
+  countdown: {
+    color: '#fff',
+    fontSize: 48,
+    fontFamily: 'SpaceGrotesk_500Medium',
+    letterSpacing: 2,
+    marginBottom: -8,
+    fontVariant: ['tabular-nums'], // Makes numbers equal width to prevent shifting
+  },
+  prayerTime: {
+    color: '#999',
+    fontSize: 16,
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
 });
 

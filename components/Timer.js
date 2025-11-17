@@ -94,25 +94,25 @@ const Timer = ({ prayerTimes, prayerNames }) => {
 const styles = StyleSheet.create({
   timerContainer: {
     alignItems: 'center',
-    marginTop: -20,
+    marginTop: -80,
   },
   prayerLabel: {
     color: '#999',
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'SpaceGrotesk_500Medium',
-    marginBottom: 0,
+    marginBottom: -8,
   },
   countdown: {
     color: '#fff',
-    fontSize: 64,
+    fontSize: 48,
     fontFamily: 'SpaceGrotesk_500Medium',
     letterSpacing: 2,
-    marginBottom: 0,
+    marginBottom: -8,
     fontVariant: ['tabular-nums'], // Makes numbers equal width to prevent shifting
   },
   prayerTime: {
     color: '#999',
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'SpaceGrotesk_500Medium',
   },
 });
