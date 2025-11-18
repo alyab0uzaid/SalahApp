@@ -192,8 +192,8 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
         <Defs>
           {/* Progress gradient */}
           <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <Stop offset="0%" stopColor="#26282C" />
-            <Stop offset="100%" stopColor="#fff" />
+            <Stop offset="0%" stopColor={COLORS.border.secondary} />
+            <Stop offset="100%" stopColor={COLORS.accent.white} />
           </LinearGradient>
           
           {/* Multiple blur filters for layered glow effect (simulating CSS box-shadow) */}
@@ -238,7 +238,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
         <Path
           d={generateArchPath(1)}
           fill="none"
-          stroke="#232327"
+          stroke={COLORS.accent.gradient}
           strokeWidth="5"
           strokeLinecap="round"
         />
@@ -362,7 +362,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={1}
                 filter="url(#glowBlur1)"
               />
@@ -370,7 +370,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={1}
                 filter="url(#glowBlur2)"
               />
@@ -378,7 +378,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={1}
                 filter="url(#glowBlur3)"
               />
@@ -386,7 +386,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={0.8}
                 filter="url(#glowBlur4)"
               />
@@ -394,7 +394,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={0.6}
                 filter="url(#glowBlur5)"
               />
@@ -402,7 +402,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={0.4}
                 filter="url(#glowBlur6)"
               />
@@ -410,7 +410,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
                 opacity={0.3}
                 filter="url(#glowBlur7)"
               />
@@ -419,7 +419,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 cx={point.x}
                 cy={point.y}
                 r={10}
-                fill="#fff"
+                fill={COLORS.accent.white}
               />
             </>
           );
@@ -474,7 +474,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
-    marginBottom: -4, // Eliminate line-height gap at bottom
+    marginBottom: 0, // Eliminate line-height gap at bottom
   },
 });
 

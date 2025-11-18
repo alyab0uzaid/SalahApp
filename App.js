@@ -11,6 +11,7 @@ import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
+import { COLORS, FONTS } from './constants/theme';
 
 export default function App() {
   // Load Space Grotesk and Space Mono fonts
@@ -176,7 +177,7 @@ export default function App() {
   if (!fontsLoaded || loading) {
     return (
       <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color="#fff" />
+        <ActivityIndicator size="large" color={COLORS.text.primary} />
         {locationError && (
           <Text style={styles.errorText}>{locationError}</Text>
         )}
@@ -241,7 +242,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0A090E',
+    backgroundColor: COLORS.background.primary,
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingTop: 0,
@@ -271,16 +272,16 @@ const styles = StyleSheet.create({
   },
   bottomNavWrapper: {
     width: '100%',
-    backgroundColor: '#0A090E',
+    backgroundColor: COLORS.background.primary,
     paddingBottom: 8,
   },
   centerContent: {
     justifyContent: 'center',
   },
   errorText: {
-    color: '#999',
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_400Regular',
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
     marginTop: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
