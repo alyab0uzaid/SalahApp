@@ -11,6 +11,7 @@ import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
+import TimeControlSlider from './components/TimeControlSlider';
 
 // Format time to "H:MM AM/PM" format
 const formatTime = (date) => {
@@ -50,6 +51,8 @@ export default function App() {
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
+  const [timeControlEnabled, setTimeControlEnabled] = useState(false);
+  const [simulatedTime, setSimulatedTime] = useState(null);
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -190,8 +193,10 @@ export default function App() {
     }
   }, [location]);
 
-  // Update current time every 10 seconds for smoother movement
+  // Update current time every 10 seconds for smoother movement (only when not using time control)
   useEffect(() => {
+    if (timeControlEnabled) return; // Don't update if time control is active
+
     const interval = setInterval(() => {
       setCurrentTime(formatTime(new Date()));
     }, 10000); // Update every 10 seconds
@@ -200,7 +205,30 @@ export default function App() {
     setCurrentTime(formatTime(new Date()));
 
     return () => clearInterval(interval);
-  }, []);
+  }, [timeControlEnabled]);
+
+  // Handle time control changes
+  const handleTimeChange = (newTime) => {
+    setSimulatedTime(newTime);
+    setCurrentTime(newTime);
+  };
+
+  // Toggle time control mode
+  const toggleTimeControl = () => {
+    if (!timeControlEnabled) {
+      // Enable time control - use current time as starting point
+      setSimulatedTime(currentTime);
+      setTimeControlEnabled(true);
+    } else {
+      // Disable time control - go back to real time
+      setTimeControlEnabled(false);
+      setSimulatedTime(null);
+      setCurrentTime(formatTime(new Date()));
+    }
+  };
+
+  // Use simulated time if time control is enabled, otherwise use current time
+  const displayTime = timeControlEnabled ? simulatedTime : currentTime;
 
   if (!fontsLoaded || loading) {
     return (
@@ -236,10 +264,19 @@ export default function App() {
         clipsToBounds={false}
       >
         <LocationTag locationName={locationName} style={styles.locationTag} />
+
+        {/* Time Control Slider - for testing */}
+        {timeControlEnabled && (
+          <TimeControlSlider
+            currentTime={displayTime || currentTime}
+            onTimeChange={handleTimeChange}
+          />
+        )}
+
         <ArchTimer
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
-          currentTime={currentTime}
+          currentTime={displayTime || currentTime}
           width={Dimensions.get('window').width}
           height={200}
           style={styles.archTimer}
@@ -247,15 +284,26 @@ export default function App() {
         <PrayerList
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
-          currentTime={currentTime}
+          currentTime={displayTime || currentTime}
           style={styles.prayerList}
         />
       </ScrollView>
       <View style={styles.bottomNavWrapper}>
         <BottomNav
           activeTab={activeTab}
-          onTabPress={setActiveTab}
+          onTabPress={(tab) => {
+            if (tab === 'settings') {
+              toggleTimeControl();
+            } else {
+              setActiveTab(tab);
+            }
+          }}
         />
+        {timeControlEnabled && (
+          <View style={styles.timeControlIndicator}>
+            <Text style={styles.timeControlText}>⏱️ Time Control Active</Text>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -297,6 +345,23 @@ const styles = StyleSheet.create({
     width: '100%',
     backgroundColor: '#0A090E',
     paddingBottom: 8,
+  },
+  timeControlIndicator: {
+    position: 'absolute',
+    top: -40,
+    left: '50%',
+    transform: [{ translateX: -75 }],
+    backgroundColor: '#23232A',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FFFFFF33',
+  },
+  timeControlText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'SpaceGrotesk_500Medium',
   },
   centerContent: {
     justifyContent: 'center',

@@ -117,22 +117,25 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
     return dotStartRatio + (timePosition * dotWidth);
   };
 
-  // Calculate point on arch curve
+  // Calculate point on arch curve - extended to handle off-screen positions
   const getPointOnArch = (t) => {
-    // X coordinate - no padding offset since SVG is shifted with negative margins
+    // X coordinate - extends beyond arch bounds for off-screen movement
+    // When t < 0: orb is to the left of arch start
+    // When t > 1: orb is to the right of arch end
     const x = GLOW_PADDING + (t * width);
     
     // Y positions - arch curve (symmetric)
-    // Arch should fill from top to bottom of container (containerHeight)
-    // In SVG coordinates, arch goes from GLOW_PADDING (top) to GLOW_PADDING + archHeight (bottom)
-    // Adjust bottom to align with container bottom border
+    // For off-screen positions, maintain the arch's Y at the endpoints
     const leftY = GLOW_PADDING + archHeight - 15;  // Bottom of arch (adjusted to align)
     const rightY = GLOW_PADDING + archHeight - 15; // Same as left for symmetry
     const peakY = GLOW_PADDING + (archHeight * 0.083); // Peak at ~5% from top of arch
     
+    // Clamp t to 0-1 for Y calculation (keep Y at arch endpoints when off-screen)
+    const clampedT = Math.max(0, Math.min(1, t));
+    
     // Smooth curve interpolation
-    const curveFactor = 16 * t * t * (1 - t) * (1 - t);
-    const baseY = leftY * (1 - t) + rightY * t;
+    const curveFactor = 16 * clampedT * clampedT * (1 - clampedT) * (1 - clampedT);
+    const baseY = leftY * (1 - clampedT) + rightY * clampedT;
     const curveOffset = (baseY - peakY) * curveFactor;
     const y = baseY - curveOffset;
     
@@ -160,18 +163,26 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
   // Current time position
   const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes);
   const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1));
-  // Always show circle if we have a valid current time (use clamped position to keep it on arch)
-  const showCircle = rawCurrentMinutes >= minTime;
-  // Point on arch for the current indicator (use clamped so it stays on arch)
-  const currentPoint = getPointOnArch(clampedCurrentPosition);
+  
+  // Show circle when position is within visible range (with buffer for sliver effect)
+  // Allow orb to be visible from -0.3 (off-screen left) to 1.3 (off-screen right)
+  // This creates smooth sliver transitions at the edges
+  const showCircle = rawCurrentPosition >= -0.3 && rawCurrentPosition <= 1.3;
+  
+  // Use raw position to allow off-screen movement
+  const currentPoint = getPointOnArch(rawCurrentPosition);
 
-  // Gradient progress
+  // Gradient progress - only show when orb is on or about to be on the arch
+  // Don't show gradient before orb appears (rawCurrentPosition < 0)
   let currentT = 0;
-  if (showCircle) {
+  if (showCircle && rawCurrentPosition >= 0) {
+    // Orb is on the arch - show gradient up to orb position
     currentT = Math.max(0.01, clampedCurrentPosition);
-  } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60) {
+  } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60 && rawCurrentPosition <= 1) {
+    // After Isha but orb hasn't moved off-screen yet - keep gradient at full
     currentT = 1;
   }
+  // If rawCurrentPosition < 0 (before Fajr), currentT stays 0 - no gradient shown
 
   return (
     <View
@@ -354,8 +365,8 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
         {/* Current time indicator - CSS box-shadow style glow effect */}
         {/* Multiple blurred circles simulating CSS box-shadow layers */}
         {showCircle && (() => {
-          // Use clamped position directly to ensure it's always valid
-          const point = getPointOnArch(clampedCurrentPosition);
+          // Use raw position to allow off-screen movement
+          const point = getPointOnArch(rawCurrentPosition);
           return (
             <>
               <Circle
