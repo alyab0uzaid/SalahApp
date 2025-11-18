@@ -2,11 +2,11 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 
-const LocationTag = ({ locationName }) => {
+const LocationTag = ({ locationName, style }) => {
   if (!locationName) return null;
 
   return (
-    <View style={styles.locationTag}>
+    <View style={[styles.locationTag, style]}>
       <FontAwesome
         name="location-arrow"
         size={16}

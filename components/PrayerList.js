@@ -26,7 +26,7 @@ const timeToMinutes = (timeStr) => {
   return totalMinutes;
 };
 
-const PrayerList = ({ prayerTimes, prayerNames, currentTime }) => {
+const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
   
@@ -64,7 +64,7 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime }) => {
     return { isPast, isCurrent };
   };
   return (
-    <View style={styles.prayerList}>
+    <View style={[styles.prayerList, style]}>
       {prayerNames.map((name, index) => {
         const time = prayerTimes[index];
 

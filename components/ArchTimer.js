@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 
-const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height = 200 }) => {
+const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style }) => {
   // Convert time string to minutes since midnight
   const timeToMinutes = (timeStr) => {
     const [time, period] = timeStr.split(' ');
@@ -90,9 +90,19 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
   // Glow padding - space needed for glow to extend beyond component
   const GLOW_PADDING = 60; // Increased for larger glow
   const GLOW_PADDING_BOTTOM = 80; // Extra padding at bottom for glow
-  // SVG dimensions - make it larger to accommodate glow
+
+  // Arch dimensions
+  const archHeight = height * 0.60;
+
+  // Timer dimensions (approximate height of timer content)
+  const timerHeight = 100; // Approximate: label + countdown + prayer time
+
+  // Container height: arch + half of timer (so timer center aligns with arch bottom)
+  const containerHeight = archHeight + (timerHeight / 2);
+
+  // SVG dimensions - larger to accommodate glow (will be absolutely positioned)
   const svgWidth = width + (GLOW_PADDING * 2);
-  const svgHeight = (height * 0.60) + GLOW_PADDING + GLOW_PADDING_BOTTOM;
+  const svgHeight = archHeight + GLOW_PADDING + GLOW_PADDING_BOTTOM;
 
   // Map time to arch position for prayer dots
   const getDotPosition = (minutes) => {
@@ -163,26 +173,21 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
     currentT = 1;
   }
 
-  // Container height - will auto-expand to fit timer content
-  const archHeight = height * 0.60;
-
   return (
-    <View 
-      style={[styles.container, { 
-        marginTop: -GLOW_PADDING,
-        marginBottom: -GLOW_PADDING_BOTTOM,
-      }]}
-      clipsToBounds={false}
+    <View
+      style={[styles.container, {
+        height: containerHeight, // Container includes arch + half of timer
+      }, style]}
     >
-      <Svg 
-        width={svgWidth} 
-        height={svgHeight} 
+      {/* SVG positioned absolutely to allow glow overflow */}
+      <Svg
+        width={svgWidth}
+        height={svgHeight}
         style={[styles.svg, {
-          marginLeft: -GLOW_PADDING,
-          marginRight: -GLOW_PADDING,
-          marginTop: -GLOW_PADDING,
-          marginBottom: -GLOW_PADDING_BOTTOM,
-        }]} 
+          position: 'absolute',
+          top: -GLOW_PADDING, // Position to align arch correctly
+          left: -GLOW_PADDING, // Center the arch horizontally
+        }]}
       >
         <Defs>
           {/* Progress gradient */}
@@ -423,7 +428,9 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
       </Svg>
       
       {/* Timer component integrated */}
-      <View style={styles.timerContainer}>
+      <View style={[styles.timerContainer, {
+        marginTop: archHeight - (timerHeight / 2), // Position timer center at arch bottom
+      }]}>
         <Text style={styles.prayerLabel}>{nextPrayer.name} in</Text>
         <Text style={styles.countdown}>
           {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
@@ -438,17 +445,16 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    overflow: 'visible',
-    alignSelf: 'center', // Ensure component is centered
+    alignSelf: 'center',
     width: '100%',
+    // No overflow or margin properties - natural size
   },
   svg: {
-    alignSelf: 'center',
-    overflow: 'visible',
+    // Absolutely positioned - will overflow container naturally
   },
   timerContainer: {
     alignItems: 'center',
-    marginTop: -60,
+    // marginTop is set dynamically in the component
   },
   prayerLabel: {
     color: '#999',
@@ -468,6 +474,7 @@ const styles = StyleSheet.create({
     color: '#999',
     fontSize: 16,
     fontFamily: 'SpaceGrotesk_500Medium',
+    marginBottom: -4, // Eliminate line-height gap at bottom
   },
 });
 

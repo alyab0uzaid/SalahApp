@@ -235,23 +235,21 @@ export default function App() {
         showsVerticalScrollIndicator={false}
         clipsToBounds={false}
       >
-
-        <View style={styles.archTimerWrapper}>
-          <ArchTimer
-            prayerTimes={prayerTimes}
-            prayerNames={prayerNames}
-            currentTime={currentTime}
-            width={Dimensions.get('window').width}
-            height={200}
-          />
-        </View>
-        <View style={styles.prayerListWrapper}>
-          <PrayerList
-            prayerTimes={prayerTimes}
-            prayerNames={prayerNames}
-            currentTime={currentTime}
-          />
-        </View>
+        <LocationTag locationName={locationName} style={styles.locationTag} />
+        <ArchTimer
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+          currentTime={currentTime}
+          width={Dimensions.get('window').width}
+          height={200}
+          style={styles.archTimer}
+        />
+        <PrayerList
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+          currentTime={currentTime}
+          style={styles.prayerList}
+        />
       </ScrollView>
       <View style={styles.bottomNavWrapper}>
         <BottomNav
@@ -281,21 +279,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20, // Minimal bottom padding
     overflow: 'visible',
   },
-  // Wrapper system: Normal spacing for all components, ArchTimer wrapper compensates for its negative margins
-  // Best practice: Use marginBottom only (not marginTop) for consistent spacing
-  locationTagWrapper: {
-    marginBottom: 24, // Normal spacing - ArchTimer wrapper handles the compensation
+  // Normal spacing system - no wrapper compensation needed
+  locationTag: {
+    marginBottom: 24, // Normal spacing to next component
   },
-  archTimerWrapper: {
-    // Compensates for ArchTimer's internal negative margins (-60 top, -80 bottom) + normal spacing
-    marginTop: 60, // Compensate for ArchTimer's negative marginTop
-    marginBottom: 104, // Compensate for ArchTimer's -80 marginBottom + 24px normal spacing
-    overflow: 'visible',
+  archTimer: {
+    marginBottom: 24, // No spacing between ArchTimer and PrayerList
   },
-  prayerListWrapper: {
-    // No marginBottom - this is the last component (or add marginBottom if more components follow)
-    width: '100%', // Ensure full width so child can use percentage
-    alignItems: 'center', // Center the child component
+  prayerList: {
+    marginTop: 0, // Pull up to overlap with timer (timer extends beyond container)
   },
   scroll: {
     flex: 1,
