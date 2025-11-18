@@ -78,16 +78,10 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
 
   // Glow padding - space needed for glow to extend beyond component
   const GLOW_PADDING = 60; // Increased for larger glow
-  const GLOW_PADDING_BOTTOM = 80; // Extra padding at bottom for glow
+  const GLOW_PADDING_BOTTOM = 60; // Extra padding at bottom for glow
 
   // Arch dimensions
   const archHeight = height * 0.60;
-
-  // Timer dimensions (approximate height of timer content)
-  const timerHeight = 100; // Approximate: label + countdown + prayer time
-
-  // Container height: arch + half of timer (so timer center aligns with arch bottom)
-  const containerHeight = archHeight + (timerHeight / 2);
 
   // SVG dimensions - larger to accommodate glow (will be absolutely positioned)
   const svgWidth = width + (GLOW_PADDING * 2);
@@ -174,11 +168,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
   // If rawCurrentPosition < 0 (before Fajr), currentT stays 0 - no gradient shown
 
   return (
-    <View
-      style={[styles.container, {
-        height: containerHeight, // Container includes arch + half of timer
-      }, style]}
-    >
+    <View style={[styles.container, style]}>
       {/* SVG positioned absolutely to allow glow overflow */}
       <Svg
         width={svgWidth}
@@ -429,7 +419,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
       
       {/* Timer component integrated */}
       <View style={[styles.timerContainer, {
-        marginTop: archHeight - (timerHeight / 2), // Position timer center at arch bottom
+        marginTop: archHeight - 50, // Position timer below arch with slight overlap
       }]}>
         <Text style={styles.prayerLabel}>{nextPrayer.name} in</Text>
         <Text style={styles.countdown}>
