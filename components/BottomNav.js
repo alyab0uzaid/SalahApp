@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { COLORS, ICON_SIZES, SPACING } from '../constants/theme';
 
 const TABS = [
   { key: 'home', label: 'Home', icon: 'home-variant-outline' },
@@ -26,8 +27,8 @@ const BottomNav = ({ activeTab, onTabPress }) => {
           >
             <MaterialCommunityIcons
               name={tab.icon}
-              size={26}
-              color={isActive ? '#FFFFFF' : '#5F5F68'}
+              size={ICON_SIZES.lg}
+              color={isActive ? COLORS.text.primary : COLORS.text.faded}
             />
           </Pressable>
         );
@@ -41,10 +42,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#0A090E',
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 40,
+    backgroundColor: COLORS.background.primary,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xxl,
     alignSelf: 'stretch',
   },
   tab: {

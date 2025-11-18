@@ -10,24 +10,7 @@ import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
-
-// Format time to "H:MM AM/PM" format
-const formatTime = (date) => {
-  let hours = date.getHours();
-  const minutes = date.getMinutes();
-  const period = hours >= 12 ? 'PM' : 'AM';
-  
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-  
-  return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
-};
-
-// Format Date object to "H:MM AM/PM" format
-const formatPrayerTime = (date) => {
-  if (!date) return '';
-  return formatTime(date);
-};
+import { formatTime, formatPrayerTime } from './utils/timeUtils';
 
 export default function App() {
   // Load Space Grotesk and Space Mono fonts

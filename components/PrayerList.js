@@ -2,29 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-
-// Design system - spacing units
-const SPACING = {
-  xs: 4,
-  sm: 8,
-  md: 16,
-  lg: 24,
-  xl: 32,
-};
-
-// Convert time string to minutes since midnight
-const timeToMinutes = (timeStr) => {
-  const [time, period] = timeStr.split(' ');
-  const parts = time.split(':').map(Number);
-  const hours = parts[0];
-  const minutes = parts[1] || 0;
-  const seconds = parts[2] || 0;
-  
-  let totalMinutes = hours * 60 + minutes + (seconds / 60);
-  if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-  if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
-  return totalMinutes;
-};
+import { timeToMinutes } from '../utils/timeUtils';
+import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
 const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
   // Get current time in minutes
@@ -94,8 +73,8 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
             <View style={styles.prayerInfo}>
               <MaterialCommunityIcons
                 name={iconName}
-                size={24}
-                color={isPast ? "#666" : "#FFFFFF"}
+                size={ICON_SIZES.md}
+                color={isPast ? COLORS.text.disabled : COLORS.text.primary}
                 style={styles.roundedIcon}
               />
               <Text style={[styles.prayerName, isPast && styles.prayerNamePast]}>{name}</Text>
@@ -108,7 +87,12 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
           <View key={name} style={styles.prayerRow}>
             {isCurrent ? (
               <LinearGradient
-                colors={['#15141A', '#1F1E26', '#1F1E26', '#15141A']}
+                colors={[
+                  COLORS.background.secondary,
+                  COLORS.background.tertiary,
+                  COLORS.background.tertiary,
+                  COLORS.background.secondary
+                ]}
                 locations={[0, 0.2, 0.8, 1]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
@@ -130,12 +114,12 @@ const styles = StyleSheet.create({
   prayerList: {
     width: '90%',
     marginTop: 0, // Spacing handled by wrapper in App.js
-    backgroundColor: '#15141A',
-    borderRadius: 32,
+    backgroundColor: COLORS.background.secondary,
+    borderRadius: RADIUS.xl,
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: '#23232A',
+    borderColor: COLORS.border.primary,
     alignSelf: 'center',
   },
   prayerRow: {
@@ -159,21 +143,21 @@ const styles = StyleSheet.create({
     // Icons will render with their natural rounded style
   },
   prayerName: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_500Medium',
+    color: COLORS.text.primary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.medium.primary,
     marginLeft: SPACING.sm,
   },
   prayerNamePast: {
-    color: '#666',
+    color: COLORS.text.disabled,
   },
   prayerTimeText: {
-    color: '#B0B0B8',
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_400Regular',
+    color: COLORS.text.secondary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
   },
   prayerTimeTextPast: {
-    color: '#666',
+    color: COLORS.text.disabled,
   },
 });
 

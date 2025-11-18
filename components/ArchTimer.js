@@ -1,21 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
+import { timeToMinutes } from '../utils/timeUtils';
+import { COLORS, FONTS } from '../constants/theme';
 
 const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style }) => {
-  // Convert time string to minutes since midnight
-  const timeToMinutes = (timeStr) => {
-    const [time, period] = timeStr.split(' ');
-    const parts = time.split(':').map(Number);
-    const hours = parts[0];
-    const minutes = parts[1] || 0;
-    const seconds = parts[2] || 0;
-    
-    let totalMinutes = hours * 60 + minutes + (seconds / 60);
-    if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-    if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
-    return totalMinutes;
-  };
 
   // Convert current time to minutes
   const rawCurrentMinutes = timeToMinutes(currentTime);
@@ -468,23 +457,23 @@ const styles = StyleSheet.create({
     // marginTop is set dynamically in the component
   },
   prayerLabel: {
-    color: '#999',
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_500Medium',
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.medium.primary,
     marginBottom: -8,
   },
   countdown: {
-    color: '#fff',
-    fontSize: 48,
-    fontFamily: 'SpaceGrotesk_500Medium',
+    color: COLORS.text.primary,
+    fontSize: FONTS.sizes.xxl,
+    fontFamily: FONTS.weights.medium.primary,
     letterSpacing: 2,
     marginBottom: -8,
     fontVariant: ['tabular-nums'], // Makes numbers equal width to prevent shifting
   },
   prayerTime: {
-    color: '#999',
-    fontSize: 16,
-    fontFamily: 'SpaceGrotesk_500Medium',
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.medium.primary,
     marginBottom: -4, // Eliminate line-height gap at bottom
   },
 });

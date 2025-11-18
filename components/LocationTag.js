@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
+import { COLORS, FONTS, ICON_SIZES, RADIUS } from '../constants/theme';
 
 const LocationTag = ({ locationName, style }) => {
   if (!locationName) return null;
@@ -9,8 +10,8 @@ const LocationTag = ({ locationName, style }) => {
     <View style={[styles.locationTag, style]}>
       <FontAwesome
         name="location-arrow"
-        size={16}
-        color="#999"
+        size={ICON_SIZES.sm}
+        color={COLORS.text.tertiary}
       />
       <Text style={styles.locationText}>{locationName}</Text>
     </View>
@@ -25,16 +26,16 @@ const styles = StyleSheet.create({
     // No margins - spacing handled by wrapper in App.js
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#15141A',
-    borderRadius: 20,
+    backgroundColor: COLORS.background.secondary,
+    borderRadius: RADIUS.lg,
     borderWidth: 1,
-    borderColor: '#23232A',
+    borderColor: COLORS.border.primary,
     alignSelf: 'center',
   },
   locationText: {
-    color: '#999',
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_400Regular',
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.sm,
+    fontFamily: FONTS.weights.regular.primary,
     marginLeft: 6,
   },
 });
