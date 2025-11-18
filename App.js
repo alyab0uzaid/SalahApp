@@ -50,6 +50,8 @@ export default function App() {
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
+  const [contentHeight, setContentHeight] = useState(0);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -232,9 +234,14 @@ export default function App() {
       <StatusBar style="light" translucent backgroundColor="transparent" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
+        ]}
         showsVerticalScrollIndicator={false}
         clipsToBounds={false}
+        onContentSizeChange={(width, height) => setContentHeight(height)}
+        onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
       >
         <LocationTag locationName={locationName} style={styles.locationTag} />
 
@@ -273,10 +280,9 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    justifyContent: 'center', // Center content vertically
+    justifyContent: 'center', // Center content vertically when shorter than screen
     width: '100%',
-    flexGrow: 1, // Allow content to grow but center it
-    minHeight: '100%', // Ensure full height for centering
+    flexGrow: 1, // Allow content to grow for centering
     paddingTop: 20, // Minimal top padding for safe area
     paddingBottom: 20, // Minimal bottom padding
     overflow: 'visible',
