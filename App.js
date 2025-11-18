@@ -11,7 +11,7 @@ import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
-import { COLORS, FONTS } from './constants/theme';
+import { COLORS, FONTS, SPACING } from './constants/theme';
 
 export default function App() {
   // Load Space Grotesk and Space Mono fonts
@@ -252,16 +252,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center', // Center content vertically when shorter than screen
     width: '100%',
     flexGrow: 1, // Allow content to grow for centering
-    paddingTop: 20, // Minimal top padding for safe area
-    paddingBottom: 20, // Minimal bottom padding
+    paddingTop: SPACING.lg, // Minimal top padding for safe area
+    paddingBottom: SPACING.lg, // Minimal bottom padding
     overflow: 'visible',
   },
   // Normal spacing system - no wrapper compensation needed
   locationTag: {
-    marginBottom: 24, // Normal spacing to next component
+    marginBottom: SPACING.lg, // Normal spacing to next component
   },
   archTimer: {
-    marginBottom: 24, // No spacing between ArchTimer and PrayerList
+    marginBottom: SPACING.lg, // No spacing between ArchTimer and PrayerList
   },
   prayerList: {
     marginTop: 0, // Pull up to overlap with timer (timer extends beyond container)
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   bottomNavWrapper: {
     width: '100%',
     backgroundColor: COLORS.background.primary,
-    paddingBottom: 8,
+    paddingBottom: SPACING.sm,
   },
   centerContent: {
     justifyContent: 'center',
@@ -282,8 +282,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
-    marginTop: 20,
+    marginTop: SPACING.lg,
     textAlign: 'center',
-    paddingHorizontal: 20,
+    paddingHorizontal: SPACING.lg,
   },
 });

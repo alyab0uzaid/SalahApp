@@ -51,8 +51,8 @@ const styles = StyleSheet.create({
   tab: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: SPACING.xs + 2, // 6px
+    paddingHorizontal: SPACING.md - 4, // 12px
   },
   tabActive: {},
   tabPressed: {},

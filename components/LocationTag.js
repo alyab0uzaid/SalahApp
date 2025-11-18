@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import { COLORS, FONTS, ICON_SIZES, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, ICON_SIZES, RADIUS, SPACING } from '../constants/theme';
 
 const LocationTag = ({ locationName, style }) => {
   if (!locationName) return null;
@@ -24,8 +24,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     // No margins - spacing handled by wrapper in App.js
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: SPACING.md - 4, // 12px
+    paddingVertical: SPACING.xs + 2, // 6px
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.lg,
     borderWidth: 1,
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.tertiary,
     fontSize: FONTS.sizes.sm,
     fontFamily: FONTS.weights.regular.primary,
-    marginLeft: 6,
+    marginLeft: SPACING.xs + 2, // 6px
   },
 });
 
