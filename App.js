@@ -6,7 +6,6 @@ import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold }
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
-import PrayerArch from './components/PrayerArch';
 import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
@@ -63,24 +62,18 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        console.log('Location effect started');
-
         // Check existing permission first – helpful on reloads
         const existing = await Location.getForegroundPermissionsAsync();
-        console.log('Existing permission:', existing);
 
         // If we already have permission, skip the prompt
         let status = existing.status;
 
         if (status !== 'granted' && existing.canAskAgain) {
-          console.log('Requesting permissions…');
           const requested = await Location.requestForegroundPermissionsAsync();
-          console.log('Request result:', requested);
           status = requested.status;
         }
 
         if (status !== 'granted') {
-          console.log('Permission not granted, status =', status);
           // Either denied or cannot ask again – tell user to change browser/device settings
           setLocationError(
             status === 'denied'
@@ -104,7 +97,6 @@ export default function App() {
 
         // Try to get current position with sane options and a hard timeout
         try {
-          console.log('Getting current position…');
           locationData = await withTimeout(
             Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
@@ -112,20 +104,16 @@ export default function App() {
             }),
             15000 // 15 seconds max
           );
-          console.log('Got current position:', locationData);
         } catch (positionError) {
-          console.log('Error getting current position:', positionError);
           // If the browser / device can't get a fresh fix, fall back to last known position
           try {
             const lastKnown = await Location.getLastKnownPositionAsync();
-            console.log('Last known position:', lastKnown);
             if (lastKnown) {
               locationData = lastKnown;
             } else {
               throw positionError;
             }
           } catch (fallbackError) {
-            console.log('Fallback error:', fallbackError);
             setLocationError(
               fallbackError.message ||
                 'Unable to get location. Make sure location is enabled and reload the app.'
@@ -136,15 +124,14 @@ export default function App() {
         }
 
         setLocation(locationData);
-        console.log('Location stored in state');
-        
+
         // Reverse geocode to get location name
         try {
           const reverseGeocode = await Location.reverseGeocodeAsync({
             latitude: locationData.coords.latitude,
             longitude: locationData.coords.longitude,
           });
-          
+
           if (reverseGeocode && reverseGeocode.length > 0) {
             const address = reverseGeocode[0];
             // Try to get city, or use locality, or subAdministrativeArea
@@ -152,12 +139,10 @@ export default function App() {
             setLocationName(city);
           }
         } catch (geocodeError) {
-          console.log('Geocoding error:', geocodeError);
           // Fallback to coordinates if geocoding fails
           setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
         }
       } catch (error) {
-        console.log('Outer location error:', error);
         setLocationError(error.message);
         setLoading(false);
         return;
@@ -316,48 +301,5 @@ const styles = StyleSheet.create({
     marginTop: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  timeSliderContainer: {
-    width: '90%',
-    marginBottom: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#15141A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#23232A',
-  },
-  timeSliderLabel: {
-    color: '#999',
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    marginBottom: 8,
-  },
-  timeSliderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  timeDisplay: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontFamily: 'SpaceMono_400Regular',
-    letterSpacing: 1,
-  },
-  slider: {
-    width: '100%',
-    height: 40,
-  },
-  resetButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#23232A',
-    borderRadius: 8,
-  },
-  resetButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_500Medium',
   },
 });
