@@ -300,23 +300,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#0A090E',
     paddingBottom: 8,
   },
-  timeControlIndicator: {
-    position: 'absolute',
-    top: -40,
-    left: '50%',
-    transform: [{ translateX: -75 }],
-    backgroundColor: '#23232A',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FFFFFF33',
-  },
-  timeControlText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'SpaceGrotesk_500Medium',
-  },
   centerContent: {
     justifyContent: 'center',
   },
