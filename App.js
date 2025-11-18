@@ -1,14 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
-import { FontAwesome } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import PrayerArch from './components/PrayerArch';
+import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
+import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 
 // Format time to "H:MM AM/PM" format
@@ -226,36 +227,31 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} clipsToBounds={false}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        clipsToBounds={false}
       >
-        {/* Location tag */}
-        {locationName && (
-          <View style={styles.locationTag}>
-            <FontAwesome
-              name="location-arrow"
-              size={16}
-              color="#999"
-            />
-            <Text style={styles.locationText}>{locationName}</Text>
-          </View>
-        )}
-        <PrayerArch
-          prayerTimes={prayerTimes}
-          currentTime={currentTime}
-          prayerNames={prayerNames}
-          width={Dimensions.get('window').width}
-          height={200}
-        />
-        <PrayerList
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
-          currentTime={currentTime}
-        />
+
+        <View style={styles.archTimerWrapper}>
+          <ArchTimer
+            prayerTimes={prayerTimes}
+            prayerNames={prayerNames}
+            currentTime={currentTime}
+            width={Dimensions.get('window').width}
+            height={200}
+          />
+        </View>
+        <View style={styles.prayerListWrapper}>
+          <PrayerList
+            prayerTimes={prayerTimes}
+            prayerNames={prayerNames}
+            currentTime={currentTime}
+          />
+        </View>
       </ScrollView>
       <View style={styles.bottomNavWrapper}>
         <BottomNav
@@ -277,10 +273,29 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center', // Center content vertically
     width: '100%',
-    flex: 1,
-    paddingTop: 60,
+    flexGrow: 1, // Allow content to grow but center it
+    minHeight: '100%', // Ensure full height for centering
+    paddingTop: 20, // Minimal top padding for safe area
+    paddingBottom: 20, // Minimal bottom padding
+    overflow: 'visible',
+  },
+  // Wrapper system: Normal spacing for all components, ArchTimer wrapper compensates for its negative margins
+  // Best practice: Use marginBottom only (not marginTop) for consistent spacing
+  locationTagWrapper: {
+    marginBottom: 24, // Normal spacing - ArchTimer wrapper handles the compensation
+  },
+  archTimerWrapper: {
+    // Compensates for ArchTimer's internal negative margins (-60 top, -80 bottom) + normal spacing
+    marginTop: 60, // Compensate for ArchTimer's negative marginTop
+    marginBottom: 104, // Compensate for ArchTimer's -80 marginBottom + 24px normal spacing
+    overflow: 'visible',
+  },
+  prayerListWrapper: {
+    // No marginBottom - this is the last component (or add marginBottom if more components follow)
+    width: '100%', // Ensure full width so child can use percentage
+    alignItems: 'center', // Center the child component
   },
   scroll: {
     flex: 1,
@@ -301,25 +316,6 @@ const styles = StyleSheet.create({
     marginTop: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
-  },
-  locationTag: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#15141A',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#23232A',
-    alignSelf: 'center',
-  },
-  locationText: {
-    color: '#999',
-    fontSize: 14,
-    fontFamily: 'SpaceGrotesk_400Regular',
-    marginLeft: 6,
   },
   timeSliderContainer: {
     width: '90%',

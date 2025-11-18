@@ -129,7 +129,7 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime }) => {
 const styles = StyleSheet.create({
   prayerList: {
     width: '90%',
-    marginTop: 140,
+    marginTop: 0, // Spacing handled by wrapper in App.js
     backgroundColor: '#15141A',
     borderRadius: 32,
     paddingVertical: SPACING.sm,

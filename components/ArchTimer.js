@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 
-const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, height = 200 }) => {
-  // Convert time string (e.g., "5:22 AM" or "5:22:30 AM") to minutes since midnight
-  // Handles both "H:MM" and "H:MM:SS" formats
+const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height = 200 }) => {
+  // Convert time string to minutes since midnight
   const timeToMinutes = (timeStr) => {
     const [time, period] = timeStr.split(' ');
     const parts = time.split(':').map(Number);
@@ -12,7 +11,6 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
     const minutes = parts[1] || 0;
     const seconds = parts[2] || 0;
     
-    // Convert to total minutes including fractional seconds
     let totalMinutes = hours * 60 + minutes + (seconds / 60);
     if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
     if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
@@ -80,79 +78,64 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
 
   // Get all prayer times in minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
+  const minTime = Math.min(...timesInMinutes); // Fajr
+  const maxTime = Math.max(...timesInMinutes); // Isha
+  const visibleRange = maxTime - minTime || 1;
 
-  // Assume the first prayer is Fajr and the last is Isha for the "day".
-  const minTime = Math.min(...timesInMinutes); // today's Fajr
-  const maxTime = Math.max(...timesInMinutes); // today's Isha
+  // Arch configuration
+  const dotStartRatio = 0.10;
+  const dotEndRatio = 0.90;
+  const dotWidth = dotEndRatio - dotStartRatio;
 
-  // Visible range between Fajr and Isha (used for scaling on the arch)
-  const visibleRange = maxTime - minTime || 1; // avoid divide by zero
+  // Glow padding - space needed for glow to extend beyond component
+  const GLOW_PADDING = 60; // Increased for larger glow
+  const GLOW_PADDING_BOTTOM = 80; // Extra padding at bottom for glow
+  // SVG dimensions - make it larger to accommodate glow
+  const svgWidth = width + (GLOW_PADDING * 2);
+  const svgHeight = (height * 0.60) + GLOW_PADDING + GLOW_PADDING_BOTTOM;
 
-  // Arch configuration - continuous curve, steeper in middle, subtle at ends
-  // Arch line goes edge to edge (0 to 1), but dots have padding
-  const dotStartRatio = 0.10;  // Where dots start (10% from left - padding for dots)
-  const dotEndRatio = 0.90;     // Where dots end (90% from left - padding for dots)
-  const dotWidth = dotEndRatio - dotStartRatio; // Width for dot positioning
-
-  // Padding for glow overflow (prevents clipping) - keep this positive for glow space
-  const padding = 0; // Keep at 40 to allow glow to extend (needed for stdDeviation up to 35px)
-  const svgHeight = height + (padding * 2); // Extra space top and bottom for glow
-
-  // Top offset to move arch closer to top (without shrinking SVG)
-  const topOffset = 20; // Move arch up by 20px to hug the top
-
-  // Map time to arch position for prayer dots (Fajr -> Isha mapped into
-  // the visible portion of the arch).
+  // Map time to arch position for prayer dots
   const getDotPosition = (minutes) => {
     const clampedMinutes = Math.max(minTime, Math.min(maxTime, minutes));
-    const timePosition = (clampedMinutes - minTime) / visibleRange; // 0 to 1
+    const timePosition = (clampedMinutes - minTime) / visibleRange;
     return dotStartRatio + (timePosition * dotWidth);
   };
 
-  // Map current time on the same scale:
-  // - Between Fajr and Isha it moves across the visible dot section.
-  // - Before Fajr it keeps moving to the left (off-screen).
-  // - After Isha it keeps moving to the right (off-screen).
+  // Map current time position (can extend beyond visible arch)
   const getCurrentPosition = (minutes) => {
-    const timePosition = (minutes - minTime) / visibleRange; // can be < 0 or > 1
+    const timePosition = (minutes - minTime) / visibleRange;
     return dotStartRatio + (timePosition * dotWidth);
   };
 
-  // Calculate point on arch - continuous curve, never completely flat
+  // Calculate point on arch curve
   const getPointOnArch = (t) => {
-    const x = t * width;
+    // X coordinate - no padding offset since SVG is shifted with negative margins
+    const x = GLOW_PADDING + (t * width);
     
-    // Adjust Y positions to account for padding (glow overflow space)
-    const adjustedHeight = height;
+    // Y positions - arch curve (symmetric)
+    // Arch should fill from top to bottom of container (containerHeight)
+    // In SVG coordinates, arch goes from GLOW_PADDING (top) to GLOW_PADDING + archHeight (bottom)
+    // Adjust bottom to align with container bottom border
+    const leftY = GLOW_PADDING + archHeight - 15;  // Bottom of arch (adjusted to align)
+    const rightY = GLOW_PADDING + archHeight - 15; // Same as left for symmetry
+    const peakY = GLOW_PADDING + (archHeight * 0.083); // Peak at ~5% from top of arch
     
-    // Define Y positions - subtract topOffset to move arch up, but keep padding for glow
-    const leftY = padding - topOffset + adjustedHeight * 0.60;   // Left end Y (slightly lower)
-    const rightY = padding - topOffset + adjustedHeight * 0.55;   // Right end Y (slightly higher)
-    const peakY = padding - topOffset + adjustedHeight * 0.05;    // Peak Y (much steeper - near top)
-    
-    // Continuous curve that's steeper in middle, subtle at ends
-    // Use quadratic bezier interpolation for smooth curve
-    // This creates a curve that never completely flattens
-    const curveFactor = 16 * t * t * (1 - t) * (1 - t); // Peaks at 0.5, subtle at ends
-    
-    // Interpolate between endpoints
+    // Smooth curve interpolation
+    const curveFactor = 16 * t * t * (1 - t) * (1 - t);
     const baseY = leftY * (1 - t) + rightY * t;
-    
-    // Apply curve - stronger in middle, subtle at ends
     const curveOffset = (baseY - peakY) * curveFactor;
     const y = baseY - curveOffset;
     
     return { x, y };
   };
 
-  // Generate the arch path by sampling points - ensures consistency with dots
+  // Generate arch path
   const generateArchPath = (endT = 1) => {
     const points = [];
-    // Use enough points to ensure smooth curve even for short segments
-    const numPoints = Math.max(50, Math.ceil(100 * endT)); // At least 50 points, scale with length
+    const numPoints = Math.max(50, Math.ceil(100 * endT));
     
     for (let i = 0; i <= numPoints; i++) {
-      const t = (i / numPoints) * endT; // Scale to endT
+      const t = (i / numPoints) * endT;
       const point = getPointOnArch(t);
       if (i === 0) {
         points.push(`M ${point.x} ${point.y}`);
@@ -164,46 +147,45 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
     return points.join(' ');
   };
 
-  // Position for the current-time indicator along the arch
-  const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes); // may be < 0 or > 1
-  const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1)); // visible [0,1]
+  // Current time position
+  const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes);
+  const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1));
+  // Always show circle if we have a valid current time (use clamped position to keep it on arch)
+  const showCircle = rawCurrentMinutes >= minTime;
+  // Point on arch for the current indicator (use clamped so it stays on arch)
+  const currentPoint = getPointOnArch(clampedCurrentPosition);
 
-  // Visibility flags:
-  // - Circle: visible as soon as it reaches the arch (0–1 range)
-  // - Gradient: only starts once the circle is within the dot band so
-  //   we never see a tiny sliver of fill on the far left before the circle.
-  const showCircle =
-    rawCurrentPosition >= 0 && rawCurrentPosition <= 1;
-  // Gradient should appear as soon as the circle is on the arch (same condition),
-  // just not before that.
-  const showGradientDynamic = showCircle;
-
-  // Point on arch for the current indicator (use raw so it can slide
-  // off-screen smoothly to the sides)
-  const currentPoint = getPointOnArch(rawCurrentPosition);
-
-  // Progress value for the gradient along the arch:
-  // - Before Fajr: no fill (0)
-  // - Between Fajr and Isha: follows the current dot once it's in the dot band
-  // - After Isha until midnight: stays fully filled (1) even after the dot slides off
-  // - After midnight and before next Fajr: reset to 0
+  // Gradient progress
   let currentT = 0;
-  if (showGradientDynamic) {
+  if (showCircle) {
     currentT = Math.max(0.01, clampedCurrentPosition);
   } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60) {
     currentT = 1;
   }
 
+  // Container height - will auto-expand to fit timer content
+  const archHeight = height * 0.60;
+
   return (
-    <View style={styles.container}>
+    <View 
+      style={[styles.container, { 
+        marginTop: -GLOW_PADDING,
+        marginBottom: -GLOW_PADDING_BOTTOM,
+      }]}
+      clipsToBounds={false}
+    >
       <Svg 
-        width={width} 
+        width={svgWidth} 
         height={svgHeight} 
-        style={styles.svg} 
-        overflow="visible"
+        style={[styles.svg, {
+          marginLeft: -GLOW_PADDING,
+          marginRight: -GLOW_PADDING,
+          marginTop: -GLOW_PADDING,
+          marginBottom: -GLOW_PADDING_BOTTOM,
+        }]} 
       >
         <Defs>
-          {/* Gradient from #26282C to white, left to right */}
+          {/* Progress gradient */}
           <LinearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <Stop offset="0%" stopColor="#26282C" />
             <Stop offset="100%" stopColor="#fff" />
@@ -233,19 +215,13 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
             <FeGaussianBlur stdDeviation="35" edgeMode="none" />
           </Filter>
           
-          {/* Frosted glass filter for prayer time circles */}
-          <Filter id="frostedGlass" x="-50%" y="-50%" width="200%" height="200%">
-            <FeGaussianBlur stdDeviation="3" edgeMode="none" />
-          </Filter>
-          
-          {/* Liquid glass effect - radial gradient with highlight - more translucent */}
+          {/* Liquid glass gradients */}
           <RadialGradient id="liquidGlass" cx="30%" cy="30%">
             <Stop offset="0%" stopColor="rgba(255, 255, 255, 0.25)" />
             <Stop offset="50%" stopColor="rgba(255, 255, 255, 0.08)" />
             <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
           </RadialGradient>
           
-          {/* Liquid glass effect for past circles - more translucent */}
           <RadialGradient id="liquidGlassPast" cx="30%" cy="30%">
             <Stop offset="0%" stopColor="rgba(200, 200, 200, 0.2)" />
             <Stop offset="50%" stopColor="rgba(150, 150, 150, 0.08)" />
@@ -253,7 +229,7 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
           </RadialGradient>
         </Defs>
 
-        {/* Main arch line - dark gray (full path) */}
+        {/* Main arch line */}
         <Path
           d={generateArchPath(1)}
           fill="none"
@@ -273,49 +249,35 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
           />
         )}
         
-        {/* Past prayer time dots - filled (rendered behind current indicator) */}
+        {/* Past prayer time dots */}
         {prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
           
-          // Determine if the prayer time is in the past relative to the
-          // current clock time.
-          //
-          // Between midnight and Fajr we conceptually "reset" the day, so
-          // nothing is considered past yet and all dots appear as future.
-          // A prayer becomes "past" when the current time equals or passes it,
-          // so unfilled circles stay in front until the exact moment it equals.
           let isPast = false;
           if (rawCurrentMinutes >= minTime) {
-            // Regular case: from Fajr until midnight, anything earlier or equal today is past
-            // Use >= so it switches at the exact moment it equals the prayer time
             isPast = rawCurrentMinutes >= minutes;
           }
           
-          // Only render past circles here (future ones will be rendered after current indicator)
           if (!isPast) return null;
           
-          // Don't show regular dots if current time is extremely close (within ~1 minute),
-          // but only when the current-time indicator is actually visible.
+          // Hide if too close to current indicator
           if (showCircle && Math.abs(position - clampedCurrentPosition) < 0.002) {
             return null;
           }
           
-          // Calculate fade-in opacity as current time passes prayer time
-          // Fade in over the first 3 minutes after the prayer time
+          // Fade in opacity
           const fadeWindowMinutes = 3;
           const minutesAfterPrayer = rawCurrentMinutes - minutes;
           let opacity = 1;
           
           if (minutesAfterPrayer >= 0 && minutesAfterPrayer <= fadeWindowMinutes) {
-            // Fade from 0 to 1 over the fade window
             opacity = Math.min(1, minutesAfterPrayer / fadeWindowMinutes);
           }
           
           return (
             <G key={`past-${index}`}>
-              {/* Base glass circle - very translucent */}
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -325,7 +287,6 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
                 strokeWidth="1"
                 opacity={opacity}
               />
-              {/* Liquid glass highlight overlay */}
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -337,115 +298,32 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
           );
         })}
 
-        {/* Current time indicator - CSS box-shadow style glow effect */}
-        {/* Multiple blurred circles simulating CSS box-shadow layers */}
-        {showCircle && (
-          <>
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={1}
-              filter="url(#glowBlur1)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={1}
-              filter="url(#glowBlur2)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={1}
-              filter="url(#glowBlur3)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={0.8}
-              filter="url(#glowBlur4)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={0.6}
-              filter="url(#glowBlur5)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={0.4}
-              filter="url(#glowBlur6)"
-            />
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-              opacity={0.3}
-              filter="url(#glowBlur7)"
-            />
-            {/* Solid white center */}
-            <Circle
-              cx={currentPoint.x}
-              cy={currentPoint.y}
-              r={10}
-              fill="#fff"
-            />
-          </>
-        )}
-
-        {/* Future prayer time dots - stroked (rendered on top of current indicator) */}
+        {/* Future prayer time dots */}
         {prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
           
-          // Determine if the prayer time is in the past relative to the
-          // current clock time.
-          // A prayer becomes "past" when the current time equals or passes it,
-          // so unfilled circles stay in front until the exact moment it equals.
           let isPast = false;
           if (rawCurrentMinutes >= minTime) {
-            // Regular case: from Fajr until midnight, anything earlier or equal today is past
-            // Use >= so it switches at the exact moment it equals the prayer time
             isPast = rawCurrentMinutes >= minutes;
           }
           
-          // Only render future circles here (past ones are rendered before current indicator)
-          // Don't hide based on position - only hide when time has actually passed
           if (isPast) return null;
           
-          // Calculate fade opacity as current time approaches prayer time
-          // Fade out over the last 3 minutes before the prayer time
+          // Fade out opacity
           const fadeWindowMinutes = 3;
           const minutesUntilPrayer = minutes - rawCurrentMinutes;
           let opacity = 1;
           
           if (minutesUntilPrayer <= fadeWindowMinutes && minutesUntilPrayer > 0) {
-            // Fade from 1 to 0 over the fade window
             opacity = minutesUntilPrayer / fadeWindowMinutes;
           } else if (minutesUntilPrayer <= 0) {
-            // Fully faded when time equals or passes
             opacity = 0;
           }
           
           return (
             <G key={`future-${index}`}>
-              {/* Base glass circle - stroke only, matching filled style */}
-              {/* Rendered after current indicator to ensure it's on top */}
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -455,7 +333,6 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
                 strokeWidth="3"
                 opacity={opacity}
               />
-              {/* Liquid glass highlight overlay - stroke only */}
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -468,6 +345,81 @@ const PrayerArch = ({ prayerTimes, currentTime, prayerNames = [], width = 350, h
             </G>
           );
         })}
+
+        {/* Current time indicator - CSS box-shadow style glow effect */}
+        {/* Multiple blurred circles simulating CSS box-shadow layers */}
+        {showCircle && (() => {
+          // Use clamped position directly to ensure it's always valid
+          const point = getPointOnArch(clampedCurrentPosition);
+          return (
+            <>
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={1}
+                filter="url(#glowBlur1)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={1}
+                filter="url(#glowBlur2)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={1}
+                filter="url(#glowBlur3)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={0.8}
+                filter="url(#glowBlur4)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={0.6}
+                filter="url(#glowBlur5)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={0.4}
+                filter="url(#glowBlur6)"
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+                opacity={0.3}
+                filter="url(#glowBlur7)"
+              />
+              {/* Solid white center */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill="#fff"
+              />
+            </>
+          );
+        })()}
+
       </Svg>
       
       {/* Timer component integrated */}
@@ -486,13 +438,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingTop: 0,
-    paddingBottom: 0,
     overflow: 'visible',
-    marginTop: -60, // Allow glow to extend above, similar to bottom behavior
-    marginBottom: -100, // Large negative margin to compensate for extra SVG height from glow
-    borderWidth: 2,
-    borderColor: 'red',
+    alignSelf: 'center', // Ensure component is centered
+    width: '100%',
   },
   svg: {
     alignSelf: 'center',
@@ -500,7 +448,7 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
-    marginTop: -170,
+    marginTop: -60,
   },
   prayerLabel: {
     color: '#999',
@@ -523,5 +471,5 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PrayerArch;
+export default ArchTimer;
 
