@@ -212,7 +212,7 @@ export default function App() {
         onContentSizeChange={(width, height) => setContentHeight(height)}
         onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
       >
-        <LocationTag locationName={locationName} style={styles.locationTag} />
+
 
         <ArchTimer
           prayerTimes={prayerTimes}

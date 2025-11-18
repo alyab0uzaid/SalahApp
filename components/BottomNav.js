@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background.primary,
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.md,
+    paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxl,
     alignSelf: 'stretch',
   },
