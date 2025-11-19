@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
@@ -10,6 +10,7 @@ import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
+import DatePicker from './components/DatePicker';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
@@ -35,6 +36,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // Cache today's prayer times to avoid recalculation when switching back
+  const todayPrayerTimesRef = useRef(null);
+  const archTimerRef = useRef(null);
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -134,17 +140,27 @@ export default function App() {
     })();
   }, []);
 
-  // Calculate prayer times when location is available
+  // Calculate prayer times when location or selected date changes
   useEffect(() => {
     if (location) {
+      const today = new Date();
+      const isToday = selectedDate.getDate() === today.getDate() &&
+        selectedDate.getMonth() === today.getMonth() &&
+        selectedDate.getFullYear() === today.getFullYear();
+      
+      // If switching to today and we have cached today's times, skip recalculation
+      // (prayer times are already set in onGoToToday handler)
+      if (isToday && todayPrayerTimesRef.current && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
+        return; // Already set, skip
+      }
+      
       const coordinates = new Adhan.Coordinates(
         location.coords.latitude,
         location.coords.longitude
       );
       
       const params = Adhan.CalculationMethod.MuslimWorldLeague();
-      const date = new Date();
-      const prayerTimesData = new Adhan.PrayerTimes(coordinates, date, params);
+      const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
       
       // Format prayer times
       const formattedTimes = [
@@ -156,10 +172,15 @@ export default function App() {
         formatPrayerTime(prayerTimesData.isha),
       ];
       
+      // Cache today's prayer times for instant switching
+      if (isToday) {
+        todayPrayerTimesRef.current = formattedTimes;
+      }
+      
       setPrayerTimes(formattedTimes);
       setLoading(false);
     }
-  }, [location]);
+  }, [location, selectedDate]);
 
   // Update current time every 10 seconds for smoother movement
   useEffect(() => {
@@ -215,18 +236,46 @@ export default function App() {
 
 
         <ArchTimer
+          ref={archTimerRef}
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
           currentTime={currentTime}
           width={Dimensions.get('window').width}
           height={200}
           style={styles.archTimer}
+          selectedDate={selectedDate}
+          onGoToToday={() => {
+            const today = new Date();
+            // Only update if not already today to avoid unnecessary re-renders
+            const currentDate = selectedDate;
+            const isAlreadyToday = currentDate && 
+              currentDate.getDate() === today.getDate() &&
+              currentDate.getMonth() === today.getMonth() &&
+              currentDate.getFullYear() === today.getFullYear();
+            if (!isAlreadyToday) {
+              // Start animation immediately, before state update
+              if (archTimerRef.current) {
+                archTimerRef.current.animateToToday();
+              }
+              // Use cached prayer times immediately if available
+              if (todayPrayerTimesRef.current) {
+                setPrayerTimes(todayPrayerTimesRef.current);
+              }
+              setSelectedDate(today);
+            }
+          }}
+        />
+        <DatePicker
+          selectedDate={selectedDate}
+          onDateChange={setSelectedDate}
+          style={styles.datePicker}
         />
         <PrayerList
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
           currentTime={currentTime}
           style={styles.prayerList}
+          selectedDate={selectedDate}
         />
       </ScrollView>
       <View style={styles.bottomNavWrapper}>
@@ -262,6 +311,9 @@ const styles = StyleSheet.create({
   },
   archTimer: {
     marginBottom: SPACING.lg, // No spacing between ArchTimer and PrayerList
+  },
+  datePicker: {
+    marginBottom: SPACING.md,
   },
   prayerList: {
     marginTop: 0, // Pull up to overlap with timer (timer extends beyond container)

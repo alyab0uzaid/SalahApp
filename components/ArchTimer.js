@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
+import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 import { timeToMinutes } from '../utils/timeUtils';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style }) => {
+const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday }, ref) => {
+  // Check if selected date is today
+  const isToday = () => {
+    if (!selectedDate) return true;
+    const today = new Date();
+    return (
+      selectedDate.getDate() === today.getDate() &&
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const isCurrentDateToday = isToday();
 
   // Convert current time to minutes
   const rawCurrentMinutes = timeToMinutes(currentTime);
@@ -13,7 +25,80 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [nextPrayer, setNextPrayer] = useState({ name: '', time: '' });
 
-  // Calculate next prayer and countdown
+  // Animated values for smooth fade transitions
+  const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
+  const buttonOpacity = useRef(new Animated.Value(isCurrentDateToday ? 0 : 1)).current;
+  const prevIsToday = useRef(isCurrentDateToday);
+  const manuallyAnimating = useRef(false);
+
+  // Expose animation control to parent
+  useImperativeHandle(ref, () => ({
+    animateToToday: () => {
+      // Mark that we're manually animating to prevent useEffect from running
+      manuallyAnimating.current = true;
+      // Start animation immediately, before state updates
+      Animated.sequence([
+        Animated.timing(buttonOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(timerOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Reset flag after animation completes
+        manuallyAnimating.current = false;
+      });
+      // Update prevIsToday immediately so useEffect doesn't run
+      prevIsToday.current = true;
+    }
+  }));
+
+  // Update animations when date changes
+  useEffect(() => {
+    // Skip if we're manually animating
+    if (manuallyAnimating.current) return;
+    
+    // Only animate if the state actually changed
+    if (prevIsToday.current === isCurrentDateToday) return;
+    prevIsToday.current = isCurrentDateToday;
+
+    // Start animation with fades
+    if (isCurrentDateToday) {
+      // Going to today: button fades out, then timer fades in
+      Animated.sequence([
+        Animated.timing(buttonOpacity, {
+          toValue: 0,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+        Animated.timing(timerOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Going to another day: fade out timer (keep values), then fade in button
+      Animated.sequence([
+        Animated.timing(timerOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+  }, [isCurrentDateToday]);
+
+  // Calculate next prayer and countdown - always update for today's timer
   useEffect(() => {
     const updateTimer = () => {
       const now = new Date();
@@ -56,10 +141,10 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
       });
     };
 
-    // Update immediately
+    // Update immediately - this ensures timer is ready right away
     updateTimer();
 
-    // Update every second for countdown
+    // Always update timer every second (even when not viewing today, it will just be hidden)
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
@@ -143,29 +228,34 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
     return points.join(' ');
   };
 
-  // Current time position
-  const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes);
-  const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1));
-  
-  // Show circle when position is within visible range (with buffer for sliver effect)
-  // Allow orb to be visible from -0.3 (off-screen left) to 1.3 (off-screen right)
-  // This creates smooth sliver transitions at the edges
-  const showCircle = rawCurrentPosition >= -0.3 && rawCurrentPosition <= 1.3;
-  
-  // Use raw position to allow off-screen movement
-  const currentPoint = getPointOnArch(rawCurrentPosition);
+  // Memoize expensive calculations - only recalculate when time or prayer times change
+  const archCalculations = useMemo(() => {
+    const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes);
+    const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1));
+    const showCircle = rawCurrentPosition >= -0.3 && rawCurrentPosition <= 1.3;
+    const currentPoint = getPointOnArch(rawCurrentPosition);
+    
+    let currentT = 0;
+    if (rawCurrentPosition >= 0) {
+      currentT = Math.max(0.01, clampedCurrentPosition);
+    } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60 && rawCurrentPosition <= 1) {
+      currentT = 1;
+    }
+    
+    return {
+      rawCurrentPosition,
+      clampedCurrentPosition,
+      showCircle,
+      currentPoint,
+      currentT
+    };
+  }, [rawCurrentMinutes, minTime, maxTime, width, height]);
 
-  // Gradient progress - only show when orb is on or about to be on the arch
-  // Don't show gradient before orb appears (rawCurrentPosition < 0)
-  let currentT = 0;
-  if (showCircle && rawCurrentPosition >= 0) {
-    // Orb is on the arch - show gradient up to orb position
-    currentT = Math.max(0.01, clampedCurrentPosition);
-  } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60 && rawCurrentPosition <= 1) {
-    // After Isha but orb hasn't moved off-screen yet - keep gradient at full
-    currentT = 1;
-  }
-  // If rawCurrentPosition < 0 (before Fajr), currentT stays 0 - no gradient shown
+  const { rawCurrentPosition, clampedCurrentPosition, showCircle, currentPoint, currentT } = archCalculations;
+  const shouldShowCircle = isCurrentDateToday && showCircle;
+  
+  // Memoize the gradient path
+  const gradientPath = useMemo(() => currentT > 0 ? generateArchPath(currentT) : '', [currentT, width, height]);
 
   return (
     <View style={[styles.container, style]}>
@@ -233,18 +323,20 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
           strokeLinecap="round"
         />
         
-        {/* Gradient line up to current time */}
-        {currentT > 0 && (
+        {/* Gradient line up to current time - always render, control with opacity */}
+        {gradientPath && (
           <Path
-            d={generateArchPath(currentT)}
+            d={gradientPath}
             fill="none"
             stroke="url(#progressGradient)"
             strokeWidth="5"
             strokeLinecap="round"
+            opacity={isCurrentDateToday ? 1 : 0}
+            pointerEvents={isCurrentDateToday ? 'auto' : 'none'}
           />
         )}
         
-        {/* Past prayer time dots */}
+        {/* Past prayer time dots - always render, control with opacity */}
         {prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
@@ -272,7 +364,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
           }
           
           return (
-            <G key={`past-${index}`}>
+            <G key={`past-${index}`} opacity={isCurrentDateToday ? opacity : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -280,14 +372,13 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 fill="rgba(255, 255, 255, 0.08)"
                 stroke="rgba(255, 255, 255, 0.25)"
                 strokeWidth="1"
-                opacity={opacity}
               />
               <Circle
                 cx={point.x}
                 cy={point.y}
                 r={9}
                 fill="url(#liquidGlassPast)"
-                opacity={opacity * 0.5}
+                opacity={0.5}
               />
             </G>
           );
@@ -299,26 +390,30 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
           
+          // When not today, show all dots as future (no fade logic)
           let isPast = false;
-          if (rawCurrentMinutes >= minTime) {
-            isPast = rawCurrentMinutes >= minutes;
-          }
-          
-          if (isPast) return null;
-          
-          // Fade out opacity
-          const fadeWindowMinutes = 3;
-          const minutesUntilPrayer = minutes - rawCurrentMinutes;
           let opacity = 1;
           
-          if (minutesUntilPrayer <= fadeWindowMinutes && minutesUntilPrayer > 0) {
-            opacity = minutesUntilPrayer / fadeWindowMinutes;
-          } else if (minutesUntilPrayer <= 0) {
-            opacity = 0;
+          if (isCurrentDateToday) {
+            if (rawCurrentMinutes >= minTime) {
+              isPast = rawCurrentMinutes >= minutes;
+            }
+            
+            if (isPast) return null;
+            
+            // Fade out opacity only when viewing today
+            const fadeWindowMinutes = 3;
+            const minutesUntilPrayer = minutes - rawCurrentMinutes;
+            
+            if (minutesUntilPrayer <= fadeWindowMinutes && minutesUntilPrayer > 0) {
+              opacity = minutesUntilPrayer / fadeWindowMinutes;
+            } else if (minutesUntilPrayer <= 0) {
+              opacity = 0;
+            }
           }
           
           return (
-            <G key={`future-${index}`}>
+            <G key={`future-${index}`} opacity={isCurrentDateToday ? opacity : 1} pointerEvents="auto">
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -326,7 +421,6 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.35)"
                 strokeWidth="3"
-                opacity={opacity}
               />
               <Circle
                 cx={point.x}
@@ -335,7 +429,7 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.2)"
                 strokeWidth="1.5"
-                opacity={opacity * 0.5}
+                opacity={0.5}
               />
             </G>
           );
@@ -343,11 +437,11 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
 
         {/* Current time indicator - CSS box-shadow style glow effect */}
         {/* Multiple blurred circles simulating CSS box-shadow layers */}
-        {showCircle && (() => {
+        {shouldShowCircle && (() => {
           // Use raw position to allow off-screen movement
-          const point = getPointOnArch(rawCurrentPosition);
+          const point = currentPoint;
           return (
-            <>
+            <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -411,25 +505,39 @@ const ArchTimer = ({ prayerTimes, prayerNames, currentTime, width = 350, height 
                 r={10}
                 fill={COLORS.accent.white}
               />
-            </>
+            </G>
           );
         })()}
 
       </Svg>
       
-      {/* Timer component integrated */}
+      {/* Timer component integrated - both timer and button in same space */}
       <View style={[styles.timerContainer, {
         marginTop: archHeight - 50, // Position timer below arch with slight overlap
       }]}>
-        <Text style={styles.prayerLabel}>{nextPrayer.name} in</Text>
-        <Text style={styles.countdown}>
-          {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
-        </Text>
-        <Text style={styles.prayerTime}>{nextPrayer.time}</Text>
+        {/* Timer - fade out when not today */}
+        <Animated.View style={[styles.timerContent, { opacity: timerOpacity }]}>
+          <Text style={styles.prayerLabel}>{nextPrayer.name} in</Text>
+          <Text style={styles.countdown}>
+            {countdown.hours}:{countdown.minutes.toString().padStart(2, '0')}:{countdown.seconds.toString().padStart(2, '0')}
+          </Text>
+          <Text style={styles.prayerTime}>{nextPrayer.time}</Text>
+        </Animated.View>
+        
+        {/* Today button - fade in when not today, positioned absolutely to take same space */}
+        <Animated.View style={[styles.todayButtonContainer, { opacity: buttonOpacity }]}>
+          <TouchableOpacity
+            onPress={onGoToToday}
+            style={styles.todayButton}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.todayButtonText}>Today</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
@@ -444,7 +552,21 @@ const styles = StyleSheet.create({
   },
   timerContainer: {
     alignItems: 'center',
+    position: 'relative',
+    minHeight: 100, // Ensure consistent height
     // marginTop is set dynamically in the component
+  },
+  timerContent: {
+    alignItems: 'center',
+    position: 'absolute',
+    width: '100%',
+  },
+  todayButtonContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'absolute',
+    width: '100%',
+    minHeight: 100, // Match timer height
   },
   prayerLabel: {
     color: COLORS.text.tertiary,
@@ -465,6 +587,19 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
     marginBottom: 0, // Eliminate line-height gap at bottom
+  },
+  todayButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.lg,
+    borderRadius: RADIUS.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  todayButtonText: {
+    color: COLORS.text.primary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.medium.primary,
   },
 });
 

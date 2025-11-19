@@ -1,19 +1,48 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
+const PrayerList = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate }) => {
+  // State to track which prayers have notifications enabled
+  const [notifications, setNotifications] = useState(
+    prayerNames.reduce((acc, name) => ({ ...acc, [name]: false }), {})
+  );
+
+  const handleBellPress = (prayerName) => {
+    const newState = !notifications[prayerName];
+    setNotifications(prev => ({ ...prev, [prayerName]: newState }));
+    if (onNotificationToggle) {
+      onNotificationToggle(prayerName, newState);
+    }
+  };
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
   
   // Convert all prayer times to minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
   
-  // Determine which prayer is current and which are past
+  // Check if selected date is today
+  const isToday = () => {
+    if (!selectedDate) return true;
+    const today = new Date();
+    return (
+      selectedDate.getDate() === today.getDate() &&
+      selectedDate.getMonth() === today.getMonth() &&
+      selectedDate.getFullYear() === today.getFullYear()
+    );
+  };
+
+  const isCurrentDateToday = isToday();
+
+  // Determine which prayer is current and which are past (only if viewing today)
   const getPrayerStatus = (index) => {
+    // If not viewing today, nothing is past or current
+    if (!isCurrentDateToday) {
+      return { isPast: false, isCurrent: false };
+    }
+
     if (!currentMinutes) return { isPast: false, isCurrent: false };
     
     const prayerMinutes = timesInMinutes[index];
@@ -67,42 +96,46 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style }) => {
         })();
 
         const { isPast, isCurrent } = getPrayerStatus(index);
-        
-        const rowContent = (
-          <View style={styles.prayerRowContent}>
-            <View style={styles.prayerInfo}>
-              <MaterialCommunityIcons
-                name={iconName}
-                size={ICON_SIZES.md}
-                color={isPast ? COLORS.text.disabled : COLORS.text.primary}
-                style={styles.roundedIcon}
-              />
-              <Text style={[styles.prayerName, isPast && styles.prayerNamePast]}>{name}</Text>
-            </View>
-            <Text style={[styles.prayerTimeText, isPast && styles.prayerTimeTextPast]}>{time}</Text>
-          </View>
-        );
+        const hasNotification = notifications[name];
 
         return (
           <View key={name} style={styles.prayerRow}>
-            {isCurrent ? (
-              <LinearGradient
-                colors={[
-                  COLORS.background.secondary,
-                  COLORS.background.tertiary,
-                  COLORS.background.tertiary,
-                  COLORS.background.secondary
-                ]}
-                locations={[0, 0.2, 0.8, 1]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.currentPrayerGradient}
-              >
-                {rowContent}
-              </LinearGradient>
-            ) : (
-              rowContent
-            )}
+            <View style={styles.prayerRowContent}>
+              <View style={styles.prayerInfo}>
+                <MaterialCommunityIcons
+                  name={iconName}
+                  size={20}
+                  color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
+                />
+                <Text style={[
+                  styles.prayerName, 
+                  isPast && styles.prayerNamePast,
+                  isCurrent && styles.prayerNameActive
+                ]}>
+                  {name}
+                </Text>
+              </View>
+              <View style={styles.timeAndBell}>
+                <Text style={[
+                  styles.prayerTimeText, 
+                  isPast && styles.prayerTimeTextPast,
+                  isCurrent && styles.prayerTimeTextActive
+                ]}>
+                  {time}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => handleBellPress(name)}
+                  style={styles.bellButton}
+                  activeOpacity={0.6}
+                >
+                  <MaterialCommunityIcons
+                    name={hasNotification ? 'bell' : 'bell-outline'}
+                    size={20}
+                    color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         );
       })}
@@ -114,50 +147,66 @@ const styles = StyleSheet.create({
   prayerList: {
     width: '90%',
     marginTop: 0, // Spacing handled by wrapper in App.js
-    backgroundColor: COLORS.background.secondary,
-    borderRadius: RADIUS.xl,
-    paddingVertical: SPACING.sm,
+    backgroundColor: 'rgba(21, 20, 26, 0.3)', // Semi-transparent glass effect
+    borderRadius: RADIUS.md,
+    paddingVertical: SPACING.xs,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
-    borderColor: COLORS.border.primary,
+    borderColor: 'rgba(255, 255, 255, 0.08)', // Subtle glass border
     alignSelf: 'center',
+    overflow: 'hidden',
   },
   prayerRow: {
-    paddingVertical: SPACING.sm,
+    paddingVertical: SPACING.xs + 2,
+    paddingLeft: SPACING.sm,
+    paddingRight: SPACING.sm,
   },
   prayerRowContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  currentPrayerGradient: {
-    marginHorizontal: -SPACING.md, // Extend to edges of container
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.sm,
-  },
   prayerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  roundedIcon: {
-    // Icons will render with their natural rounded style
+    flex: 1,
   },
   prayerName: {
-    color: COLORS.text.primary,
-    fontSize: FONTS.sizes.md,
-    fontFamily: FONTS.weights.medium.primary,
+    color: COLORS.text.secondary,
+    fontSize: 15,
+    fontFamily: FONTS.weights.regular.primary,
     marginLeft: SPACING.sm,
   },
   prayerNamePast: {
     color: COLORS.text.disabled,
+    opacity: 0.5,
+  },
+  prayerNameActive: {
+    color: COLORS.text.primary,
+    fontFamily: FONTS.weights.medium.primary,
+  },
+  timeAndBell: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   prayerTimeText: {
-    color: COLORS.text.secondary,
-    fontSize: FONTS.sizes.md,
+    color: COLORS.text.tertiary,
+    fontSize: 15,
     fontFamily: FONTS.weights.regular.primary,
   },
   prayerTimeTextPast: {
     color: COLORS.text.disabled,
+    opacity: 0.5,
+  },
+  prayerTimeTextActive: {
+    color: COLORS.text.primary,
+    fontFamily: FONTS.weights.medium.primary,
+  },
+  bellButton: {
+    paddingVertical: SPACING.xs,
+    paddingLeft: SPACING.xs,
+    paddingRight: 0,
+    marginLeft: SPACING.xs / 2,
   },
 });
 
