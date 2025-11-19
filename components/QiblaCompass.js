@@ -32,9 +32,20 @@ export default function QiblaCompass({ onBackgroundChange }) {
   const arrowEndX = CIRCLE_CENTER_X + CIRCLE_RADIUS * Math.sin(angleRad);
   const arrowEndY = CIRCLE_CENTER_Y - CIRCLE_RADIUS * Math.cos(angleRad);
 
-  // Calculate arc path from top dot to arrow end dot
-  const angleDiff = rotateKaba;
-  const largeArcFlag = Math.abs(angleDiff) > 180 ? 1 : 0;
+  // Calculate angles from circle center for both dots
+  const topAngle = Math.atan2(TOP_DOT_Y - CIRCLE_CENTER_Y, TOP_DOT_X - CIRCLE_CENTER_X);
+  const arrowAngle = Math.atan2(arrowEndY - CIRCLE_CENTER_Y, arrowEndX - CIRCLE_CENTER_X);
+  
+  // Calculate the angle difference, always choosing the shorter path
+  let angleDiff = arrowAngle - topAngle;
+  
+  // Normalize to [-π, π] range
+  if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+  if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+  
+  // Determine arc flags - use shorter arc with leeway (flip at ~200° instead of 180°)
+  const flipThreshold = (200 * Math.PI) / 180; // 200 degrees in radians
+  const largeArcFlag = Math.abs(angleDiff) > flipThreshold ? 1 : 0;
   const sweepFlag = angleDiff >= 0 ? 1 : 0;
 
   const arcPath = `
