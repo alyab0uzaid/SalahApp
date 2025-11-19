@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, Dimensions, ActivityIndicator, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { useQiblaFinder } from 'react-native-qibla-finder/src/hook/useQiblaCompass';
+import { Magnetometer } from 'expo-sensors';
+import * as Location from 'expo-location';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -20,10 +21,108 @@ const TOP_DOT_Y = CIRCLE_CENTER_Y - CIRCLE_RADIUS;
 // Alignment threshold
 const ALIGNMENT_THRESHOLD = 15;
 
-export default function QiblaCompass({ onBackgroundChange }) {
-  const { rotateKaba, isLoading, errorMsg } = useQiblaFinder();
+// Calculate the direction to Qibla from current geographic location
+const calculateQibla = (latitude, longitude) => {
+  const PI = Math.PI;
+  const latk = (21.4225 * PI) / 180.0;
+  const longk = (39.8264 * PI) / 180.0;
+  const phi = (latitude * PI) / 180.0;
+  const lambda = (longitude * PI) / 180.0;
+  return (
+    (180.0 / PI) *
+    Math.atan2(
+      Math.sin(longk - lambda),
+      Math.cos(phi) * Math.tan(latk) - Math.sin(phi) * Math.cos(longk - lambda)
+    )
+  );
+};
 
-  // Animated values for smooth transitions - must be before any early returns
+// Calculate angle from magnetometer data with small threshold to reduce jitter
+const calculateAngle = (magnetometerValue, lastAngle, threshold = 0.3) => {
+  if (!magnetometerValue) return lastAngle || 0;
+  const { x, y } = magnetometerValue;
+  let angleValue = Math.atan2(y, x) * (180 / Math.PI);
+  angleValue = angleValue >= 0 ? angleValue : angleValue + 360;
+  
+  // Only update if change is significant enough (reduces jitter when still)
+  if (lastAngle !== null && lastAngle !== undefined) {
+    let diff = Math.abs(angleValue - lastAngle);
+    // Handle wrap-around (e.g., 359° to 1°)
+    if (diff > 180) diff = 360 - diff;
+    // Only update if change is above threshold
+    if (diff < threshold) return lastAngle;
+  }
+  
+  return angleValue;
+};
+
+export default function QiblaCompass({ onBackgroundChange }) {
+  const [magnetometer, setMagnetometer] = useState(0);
+  const [qiblaCoordinate, setQiblaCoordinate] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState(null);
+  const subscriptionRef = useRef(null);
+  const lastAngleRef = useRef(null);
+  
+  // Calculate rotateKaba (angle to rotate arrow to point to Qibla)
+  const rotateKaba = magnetometer - qiblaCoordinate;
+
+  // Initialize compass with higher sensitivity
+  useEffect(() => {
+    const initCompass = async () => {
+      setIsLoading(true);
+      try {
+        const isAvailable = await Magnetometer.isAvailableAsync();
+        if (!isAvailable) {
+          setErrorMsg('Compass is not available on this device');
+          setIsLoading(false);
+          return;
+        }
+
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          setErrorMsg('Location permission not granted');
+          setIsLoading(false);
+          return;
+        }
+
+        const location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced
+        });
+
+        const qiblaValue = calculateQibla(
+          location.coords.latitude,
+          location.coords.longitude
+        );
+        setQiblaCoordinate(qiblaValue);
+
+        // Set update interval to high sensitivity (16ms = ~60fps)
+        Magnetometer.setUpdateInterval(16);
+        
+        subscriptionRef.current = Magnetometer.addListener((data) => {
+          const newAngle = calculateAngle(data, lastAngleRef.current, 0.9);
+          if (newAngle !== lastAngleRef.current) {
+            lastAngleRef.current = newAngle;
+            setMagnetometer(newAngle);
+          }
+        });
+      } catch (error) {
+        setErrorMsg(error.message || 'Failed to initialize compass');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initCompass();
+
+    return () => {
+      if (subscriptionRef.current) {
+        subscriptionRef.current.remove();
+      }
+    };
+  }, []);
+
+  // Animated values for smooth transitions
   const arcOpacity = useRef(new Animated.Value(1)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
 
