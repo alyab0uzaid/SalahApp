@@ -44,16 +44,21 @@ const calculateAngle = (magnetometerValue, lastAngle, threshold = 0.3) => {
   let angleValue = Math.atan2(y, x) * (180 / Math.PI);
   angleValue = angleValue >= 0 ? angleValue : angleValue + 360;
   
+  // Apply coordinate system transformation (same as original library)
+  const transformedAngle = angleValue - 90 >= 0
+    ? angleValue - 90
+    : angleValue + 271;
+  
   // Only update if change is significant enough (reduces jitter when still)
   if (lastAngle !== null && lastAngle !== undefined) {
-    let diff = Math.abs(angleValue - lastAngle);
+    let diff = Math.abs(transformedAngle - lastAngle);
     // Handle wrap-around (e.g., 359° to 1°)
     if (diff > 180) diff = 360 - diff;
     // Only update if change is above threshold
     if (diff < threshold) return lastAngle;
   }
   
-  return angleValue;
+  return transformedAngle;
 };
 
 export default function QiblaCompass({ onBackgroundChange }) {
