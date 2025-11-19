@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -11,6 +11,7 @@ import PrayerList from './components/PrayerList';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import DatePicker from './components/DatePicker';
+import QiblaCompass from './components/QiblaCompass';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
@@ -37,10 +38,13 @@ export default function App() {
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   // Cache today's prayer times to avoid recalculation when switching back
   const todayPrayerTimesRef = useRef(null);
   const archTimerRef = useRef(null);
+
+  // Animated background color for Qibla alignment
+  const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -194,6 +198,20 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Handle Qibla background color change
+  const handleQiblaBackgroundChange = (isAligned) => {
+    Animated.timing(qiblaBgOpacity, {
+      toValue: isAligned ? 1 : 0,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Interpolate background color
+  const backgroundColor = qiblaBgOpacity.interpolate({
+    inputRange: [0, 1],
+    outputRange: [COLORS.background.primary, 'rgba(78, 205, 196, 0.15)'],
+  });
 
   if (!fontsLoaded || loading) {
     return (
@@ -220,92 +238,105 @@ export default function App() {
   }
 
   return (
-    <View style={styles.container} clipsToBounds={false}>
+    <Animated.View style={[
+      styles.container,
+      activeTab === 'qibla' && { backgroundColor, justifyContent: 'center' }
+    ]} clipsToBounds={false}>
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
-        ]}
-        showsVerticalScrollIndicator={false}
-        clipsToBounds={false}
-        onContentSizeChange={(width, height) => setContentHeight(height)}
-        onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
-      >
 
-        <LocationTag
-          locationName={locationName}
-          style={styles.locationTag}
-        />
-        <ArchTimer
-          ref={archTimerRef}
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
-          currentTime={currentTime}
-          width={Dimensions.get('window').width}
-          height={200}
-          style={styles.archTimer}
-          selectedDate={selectedDate}
-          onGoToToday={() => {
-            const today = new Date();
-            // Only update if not already today to avoid unnecessary re-renders
-            const currentDate = selectedDate;
-            const isAlreadyToday = currentDate && 
-              currentDate.getDate() === today.getDate() &&
-              currentDate.getMonth() === today.getMonth() &&
-              currentDate.getFullYear() === today.getFullYear();
-            if (!isAlreadyToday) {
-              // Start animation immediately, before state update
-              if (archTimerRef.current) {
-                archTimerRef.current.animateToToday();
+      {/* Show Qibla compass when qibla tab is active */}
+      {activeTab === 'qibla' ? (
+        <QiblaCompass onBackgroundChange={handleQiblaBackgroundChange} />
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.content,
+            contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
+          ]}
+          showsVerticalScrollIndicator={false}
+          clipsToBounds={false}
+          onContentSizeChange={(width, height) => setContentHeight(height)}
+          onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
+        >
+
+          <LocationTag
+            locationName={locationName}
+            style={styles.locationTag}
+          />
+          <ArchTimer
+            ref={archTimerRef}
+            prayerTimes={prayerTimes}
+            prayerNames={prayerNames}
+            currentTime={currentTime}
+            width={Dimensions.get('window').width}
+            height={200}
+            style={styles.archTimer}
+            selectedDate={selectedDate}
+            onGoToToday={() => {
+              const today = new Date();
+              // Only update if not already today to avoid unnecessary re-renders
+              const currentDate = selectedDate;
+              const isAlreadyToday = currentDate &&
+                currentDate.getDate() === today.getDate() &&
+                currentDate.getMonth() === today.getMonth() &&
+                currentDate.getFullYear() === today.getFullYear();
+              if (!isAlreadyToday) {
+                // Start animation immediately, before state update
+                if (archTimerRef.current) {
+                  archTimerRef.current.animateToToday();
+                }
+                // Use cached prayer times immediately if available
+                if (todayPrayerTimesRef.current) {
+                  setPrayerTimes(todayPrayerTimesRef.current);
+                }
+                setSelectedDate(today);
               }
-              // Use cached prayer times immediately if available
-              if (todayPrayerTimesRef.current) {
-                setPrayerTimes(todayPrayerTimesRef.current);
+            }}
+          />
+          <DatePicker
+            selectedDate={selectedDate}
+            onDateChange={(newDate) => {
+              const today = new Date();
+              const isNewDateToday = newDate.getDate() === today.getDate() &&
+                newDate.getMonth() === today.getMonth() &&
+                newDate.getFullYear() === today.getFullYear();
+
+              // If switching to today, trigger immediate animation like the "Today" button
+              if (isNewDateToday) {
+                // Start animation immediately, before state update
+                if (archTimerRef.current) {
+                  archTimerRef.current.animateToToday();
+                }
+                // Use cached prayer times immediately if available
+                if (todayPrayerTimesRef.current) {
+                  setPrayerTimes(todayPrayerTimesRef.current);
+                }
               }
-              setSelectedDate(today);
-            }
-          }}
-        />
-        <DatePicker
-          selectedDate={selectedDate}
-          onDateChange={(newDate) => {
-            const today = new Date();
-            const isNewDateToday = newDate.getDate() === today.getDate() &&
-              newDate.getMonth() === today.getMonth() &&
-              newDate.getFullYear() === today.getFullYear();
-            
-            // If switching to today, trigger immediate animation like the "Today" button
-            if (isNewDateToday) {
-              // Start animation immediately, before state update
-              if (archTimerRef.current) {
-                archTimerRef.current.animateToToday();
-              }
-              // Use cached prayer times immediately if available
-              if (todayPrayerTimesRef.current) {
-                setPrayerTimes(todayPrayerTimesRef.current);
-              }
-            }
-            setSelectedDate(newDate);
-          }}
-          style={styles.datePicker}
-        />
-        <PrayerList
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
-          currentTime={currentTime}
-          style={styles.prayerList}
-          selectedDate={selectedDate}
-        />
-      </ScrollView>
-      <View style={styles.bottomNavWrapper}>
+              setSelectedDate(newDate);
+            }}
+            style={styles.datePicker}
+          />
+          <PrayerList
+            prayerTimes={prayerTimes}
+            prayerNames={prayerNames}
+            currentTime={currentTime}
+            style={styles.prayerList}
+            selectedDate={selectedDate}
+          />
+        </ScrollView>
+      )}
+
+      <View style={[
+        styles.bottomNavWrapper,
+        activeTab === 'qibla' && { position: 'absolute', bottom: 0, left: 0, right: 0 }
+      ]}>
         <BottomNav
           activeTab={activeTab}
           onTabPress={setActiveTab}
         />
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
