@@ -210,7 +210,7 @@ export default function App() {
   // Interpolate background color
   const backgroundColor = qiblaBgOpacity.interpolate({
     inputRange: [0, 1],
-    outputRange: [COLORS.background.primary, 'rgba(78, 205, 196, 0.15)'],
+    outputRange: [COLORS.background.primary, 'rgb(49, 199, 86)'],
   });
 
   if (!fontsLoaded || loading) {
@@ -329,7 +329,13 @@ export default function App() {
 
       <View style={[
         styles.bottomNavWrapper,
-        activeTab === 'qibla' && { position: 'absolute', bottom: 0, left: 0, right: 0 }
+        activeTab === 'qibla' && { 
+          position: 'absolute', 
+          bottom: 0, 
+          left: 0, 
+          right: 0,
+          backgroundColor: 'transparent',
+        }
       ]}>
         <BottomNav
           activeTab={activeTab}

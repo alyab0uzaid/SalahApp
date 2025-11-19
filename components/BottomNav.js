@@ -11,8 +11,11 @@ const TABS = [
 ];
 
 const BottomNav = ({ activeTab, onTabPress }) => {
+  // No background fill when on qibla tab
+  const isQiblaTab = activeTab === 'qibla';
+  
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isQiblaTab && styles.containerNoBg]}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.key;
         return (
@@ -47,6 +50,9 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.sm,
     paddingBottom: SPACING.xxl,
     alignSelf: 'stretch',
+  },
+  containerNoBg: {
+    backgroundColor: 'transparent',
   },
   tab: {
     alignItems: 'center',
