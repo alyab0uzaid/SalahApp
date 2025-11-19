@@ -104,7 +104,7 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style, onNotificati
               <View style={styles.prayerInfo}>
                 <MaterialCommunityIcons
                   name={iconName}
-                  size={20}
+                  size={22}
                   color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
                 />
                 <Text style={[
@@ -130,7 +130,7 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style, onNotificati
                 >
                   <MaterialCommunityIcons
                     name={hasNotification ? 'bell' : 'bell-outline'}
-                    size={20}
+                    size={22}
                     color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
                   />
                 </TouchableOpacity>
@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     marginTop: 0, // Spacing handled by wrapper in App.js
     backgroundColor: 'rgba(21, 20, 26, 0.3)', // Semi-transparent glass effect
     borderRadius: RADIUS.md,
-    paddingVertical: SPACING.xs,
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)', // Subtle glass border
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   prayerRow: {
-    paddingVertical: SPACING.xs + 2,
+    paddingVertical: SPACING.sm,
     paddingLeft: SPACING.sm,
     paddingRight: SPACING.sm,
   },
@@ -173,9 +173,9 @@ const styles = StyleSheet.create({
   },
   prayerName: {
     color: COLORS.text.secondary,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
-    marginLeft: SPACING.sm,
+    marginLeft: SPACING.md,
   },
   prayerNamePast: {
     color: COLORS.text.disabled,
@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   },
   prayerTimeText: {
     color: COLORS.text.tertiary,
-    fontSize: 15,
+    fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
   },
   prayerTimeTextPast: {
@@ -204,9 +204,9 @@ const styles = StyleSheet.create({
   },
   bellButton: {
     paddingVertical: SPACING.xs,
-    paddingLeft: SPACING.xs,
+    paddingLeft: SPACING.sm,
     paddingRight: 0,
-    marginLeft: SPACING.xs / 2,
+    marginLeft: SPACING.sm,
   },
 });
 

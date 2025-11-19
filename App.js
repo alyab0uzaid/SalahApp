@@ -234,7 +234,10 @@ export default function App() {
         onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
       >
 
-
+        <LocationTag
+          locationName={locationName}
+          style={styles.locationTag}
+        />
         <ArchTimer
           ref={archTimerRef}
           prayerTimes={prayerTimes}
@@ -267,7 +270,25 @@ export default function App() {
         />
         <DatePicker
           selectedDate={selectedDate}
-          onDateChange={setSelectedDate}
+          onDateChange={(newDate) => {
+            const today = new Date();
+            const isNewDateToday = newDate.getDate() === today.getDate() &&
+              newDate.getMonth() === today.getMonth() &&
+              newDate.getFullYear() === today.getFullYear();
+            
+            // If switching to today, trigger immediate animation like the "Today" button
+            if (isNewDateToday) {
+              // Start animation immediately, before state update
+              if (archTimerRef.current) {
+                archTimerRef.current.animateToToday();
+              }
+              // Use cached prayer times immediately if available
+              if (todayPrayerTimesRef.current) {
+                setPrayerTimes(todayPrayerTimesRef.current);
+              }
+            }
+            setSelectedDate(newDate);
+          }}
           style={styles.datePicker}
         />
         <PrayerList
@@ -307,7 +328,7 @@ const styles = StyleSheet.create({
   },
   // Normal spacing system - no wrapper compensation needed
   locationTag: {
-    marginBottom: SPACING.lg, // Normal spacing to next component
+    marginBottom: SPACING.xxl, // Normal spacing to next component
   },
   archTimer: {
     marginBottom: SPACING.lg, // No spacing between ArchTimer and PrayerList
