@@ -147,8 +147,8 @@ export default function QiblaCompass({ onBackgroundChange }) {
         </View>
       </View>
 
-      {/* Angle display only */}
-      <Text style={styles.angleText}>{Math.round(Math.abs(rotateKaba))}°</Text>
+      {/* Distance from Qibla display */}
+      <Text style={styles.angleText}>{Math.round(angleFromNorth)}°</Text>
     </View>
   );
 }
