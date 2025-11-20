@@ -25,27 +25,63 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [nextPrayer, setNextPrayer] = useState({ name: '', time: '' });
 
-  // Animated values for instant transitions (no fade)
+  // Animated values for smooth transitions
   const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
   const buttonOpacity = useRef(new Animated.Value(isCurrentDateToday ? 0 : 1)).current;
 
   // Expose animation control to parent
   useImperativeHandle(ref, () => ({
     animateToToday: () => {
-      // Instant transition - no animation
-      timerOpacity.setValue(1);
-      buttonOpacity.setValue(0);
+      // Smooth fade animation - delay timer appearance to avoid flash
+      Animated.sequence([
+        // First fade out the button quickly
+        Animated.timing(buttonOpacity, {
+          toValue: 0,
+          duration: 100,
+          useNativeDriver: true,
+        }),
+        // Small delay to let prayer times update
+        Animated.delay(50),
+        // Then fade in the timer
+        Animated.timing(timerOpacity, {
+          toValue: 1,
+          duration: 150,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }));
 
-  // Update instantly when date changes (no fade)
+  // Smooth transitions when date changes
   useEffect(() => {
     if (isCurrentDateToday) {
-      timerOpacity.setValue(1);
-      buttonOpacity.setValue(0);
+      // Fade in timer, fade out button
+      Animated.parallel([
+        Animated.timing(timerOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } else {
-      timerOpacity.setValue(0);
-      buttonOpacity.setValue(1);
+      // Fade out timer, fade in button
+      Animated.parallel([
+        Animated.timing(timerOpacity, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonOpacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
   }, [isCurrentDateToday]);
 
