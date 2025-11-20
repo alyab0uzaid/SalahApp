@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import 'hijri-date';
 
-const DatePicker = ({ selectedDate, onDateChange, style }) => {
+const DatePickerComponent = ({ selectedDate, onDateChange, style }) => {
   const formatDate = (date) => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     return date.toLocaleDateString('en-US', options);
@@ -89,6 +89,11 @@ const DatePicker = ({ selectedDate, onDateChange, style }) => {
     </View>
   );
 };
+
+// Memoize component - only re-render when selectedDate changes
+const DatePicker = memo(DatePickerComponent, (prevProps, nextProps) => {
+  return prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime();
+});
 
 const styles = StyleSheet.create({
   datePicker: {

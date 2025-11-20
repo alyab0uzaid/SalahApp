@@ -245,87 +245,88 @@ export default function App() {
       <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {/* Show Qibla compass when qibla tab is active */}
-      {activeTab === 'qibla' ? (
+      {activeTab === 'qibla' && (
         <QiblaCompass onBackgroundChange={handleQiblaBackgroundChange} />
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={[
-            styles.content,
-            contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
-          ]}
-          showsVerticalScrollIndicator={false}
-          clipsToBounds={false}
-          onContentSizeChange={(width, height) => setContentHeight(height)}
-          onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
-        >
-
-          <LocationTag
-            locationName={locationName}
-            style={styles.locationTag}
-          />
-          <ArchTimer
-            ref={archTimerRef}
-            prayerTimes={prayerTimes}
-            prayerNames={prayerNames}
-            currentTime={currentTime}
-            width={Dimensions.get('window').width}
-            height={200}
-            style={styles.archTimer}
-            selectedDate={selectedDate}
-            onGoToToday={() => {
-              const today = new Date();
-              // Only update if not already today to avoid unnecessary re-renders
-              const currentDate = selectedDate;
-              const isAlreadyToday = currentDate &&
-                currentDate.getDate() === today.getDate() &&
-                currentDate.getMonth() === today.getMonth() &&
-                currentDate.getFullYear() === today.getFullYear();
-              if (!isAlreadyToday) {
-                // Start animation immediately, before state update
-                if (archTimerRef.current) {
-                  archTimerRef.current.animateToToday();
-                }
-                // Use cached prayer times immediately if available
-                if (todayPrayerTimesRef.current) {
-                  setPrayerTimes(todayPrayerTimesRef.current);
-                }
-                setSelectedDate(today);
-              }
-            }}
-          />
-          <DatePicker
-            selectedDate={selectedDate}
-            onDateChange={(newDate) => {
-              const today = new Date();
-              const isNewDateToday = newDate.getDate() === today.getDate() &&
-                newDate.getMonth() === today.getMonth() &&
-                newDate.getFullYear() === today.getFullYear();
-
-              // If switching to today, trigger immediate animation like the "Today" button
-              if (isNewDateToday) {
-                // Start animation immediately, before state update
-                if (archTimerRef.current) {
-                  archTimerRef.current.animateToToday();
-                }
-                // Use cached prayer times immediately if available
-                if (todayPrayerTimesRef.current) {
-                  setPrayerTimes(todayPrayerTimesRef.current);
-                }
-              }
-              setSelectedDate(newDate);
-            }}
-            style={styles.datePicker}
-          />
-          <PrayerList
-            prayerTimes={prayerTimes}
-            prayerNames={prayerNames}
-            currentTime={currentTime}
-            style={styles.prayerList}
-            selectedDate={selectedDate}
-          />
-        </ScrollView>
       )}
+
+      {/* Keep home tab mounted but hidden for instant switching */}
+      <ScrollView
+        style={[styles.scroll, activeTab !== 'home' && styles.hidden]}
+        contentContainerStyle={[
+          styles.content,
+          contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
+        ]}
+        showsVerticalScrollIndicator={false}
+        clipsToBounds={false}
+        onContentSizeChange={(_, height) => setContentHeight(height)}
+        onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
+        pointerEvents={activeTab === 'home' ? 'auto' : 'none'}
+      >
+        <LocationTag
+          locationName={locationName}
+          style={styles.locationTag}
+        />
+        <ArchTimer
+          ref={archTimerRef}
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+          currentTime={currentTime}
+          width={Dimensions.get('window').width}
+          height={200}
+          style={styles.archTimer}
+          selectedDate={selectedDate}
+          onGoToToday={() => {
+            const today = new Date();
+            // Only update if not already today to avoid unnecessary re-renders
+            const currentDate = selectedDate;
+            const isAlreadyToday = currentDate &&
+              currentDate.getDate() === today.getDate() &&
+              currentDate.getMonth() === today.getMonth() &&
+              currentDate.getFullYear() === today.getFullYear();
+            if (!isAlreadyToday) {
+              // Start animation immediately, before state update
+              if (archTimerRef.current) {
+                archTimerRef.current.animateToToday();
+              }
+              // Use cached prayer times immediately if available
+              if (todayPrayerTimesRef.current) {
+                setPrayerTimes(todayPrayerTimesRef.current);
+              }
+              setSelectedDate(today);
+            }
+          }}
+        />
+        <DatePicker
+          selectedDate={selectedDate}
+          onDateChange={(newDate) => {
+            const today = new Date();
+            const isNewDateToday = newDate.getDate() === today.getDate() &&
+              newDate.getMonth() === today.getMonth() &&
+              newDate.getFullYear() === today.getFullYear();
+
+            // If switching to today, trigger immediate animation like the "Today" button
+            if (isNewDateToday) {
+              // Start animation immediately, before state update
+              if (archTimerRef.current) {
+                archTimerRef.current.animateToToday();
+              }
+              // Use cached prayer times immediately if available
+              if (todayPrayerTimesRef.current) {
+                setPrayerTimes(todayPrayerTimesRef.current);
+              }
+            }
+            setSelectedDate(newDate);
+          }}
+          style={styles.datePicker}
+        />
+        <PrayerList
+          prayerTimes={prayerTimes}
+          prayerNames={prayerNames}
+          currentTime={currentTime}
+          style={styles.prayerList}
+          selectedDate={selectedDate}
+        />
+      </ScrollView>
 
       <View style={[
         styles.bottomNavWrapper,
@@ -379,6 +380,9 @@ const styles = StyleSheet.create({
   scroll: {
     flex: 1,
     width: '100%',
+  },
+  hidden: {
+    display: 'none',
   },
   bottomNavWrapper: {
     width: '100%',

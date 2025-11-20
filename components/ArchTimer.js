@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useImperativeHandle, forwardRef, memo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday }, ref) => {
+const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday }, ref) => {
   // Check if selected date is today
   const isToday = () => {
     if (!selectedDate) return true;
@@ -25,76 +25,27 @@ const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 3
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [nextPrayer, setNextPrayer] = useState({ name: '', time: '' });
 
-  // Animated values for smooth fade transitions
+  // Animated values for instant transitions (no fade)
   const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
   const buttonOpacity = useRef(new Animated.Value(isCurrentDateToday ? 0 : 1)).current;
-  const prevIsToday = useRef(isCurrentDateToday);
-  const manuallyAnimating = useRef(false);
 
   // Expose animation control to parent
   useImperativeHandle(ref, () => ({
     animateToToday: () => {
-      // Mark that we're manually animating to prevent useEffect from running
-      manuallyAnimating.current = true;
-      // Start animation immediately, before state updates
-      Animated.sequence([
-        Animated.timing(buttonOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(timerOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start(() => {
-        // Reset flag after animation completes
-        manuallyAnimating.current = false;
-      });
-      // Update prevIsToday immediately so useEffect doesn't run
-      prevIsToday.current = true;
+      // Instant transition - no animation
+      timerOpacity.setValue(1);
+      buttonOpacity.setValue(0);
     }
   }));
 
-  // Update animations when date changes
+  // Update instantly when date changes (no fade)
   useEffect(() => {
-    // Skip if we're manually animating
-    if (manuallyAnimating.current) return;
-    
-    // Only animate if the state actually changed
-    if (prevIsToday.current === isCurrentDateToday) return;
-    prevIsToday.current = isCurrentDateToday;
-
-    // Start animation with fades
     if (isCurrentDateToday) {
-      // Going to today: button fades out, then timer fades in
-      Animated.sequence([
-        Animated.timing(buttonOpacity, {
-          toValue: 0,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(timerOpacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      timerOpacity.setValue(1);
+      buttonOpacity.setValue(0);
     } else {
-      // Going to another day: fade out timer (keep values), then fade in button
-      Animated.sequence([
-        Animated.timing(timerOpacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonOpacity, {
-          toValue: 1,
-          duration: 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      timerOpacity.setValue(0);
+      buttonOpacity.setValue(1);
     }
   }, [isCurrentDateToday]);
 
@@ -369,16 +320,9 @@ const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 3
                 cx={point.x}
                 cy={point.y}
                 r={9}
-                fill="rgba(255, 255, 255, 0.08)"
+                fill="rgba(255, 255, 255, 0.5)"
                 stroke="rgba(255, 255, 255, 0.25)"
                 strokeWidth="1"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={9}
-                fill="url(#liquidGlassPast)"
-                opacity={0.5}
               />
             </G>
           );
@@ -435,70 +379,12 @@ const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 3
           );
         })}
 
-        {/* Current time indicator - CSS box-shadow style glow effect */}
-        {/* Multiple blurred circles simulating CSS box-shadow layers */}
+        {/* Current time indicator - solid circle, no glow */}
         {shouldShowCircle && (() => {
           // Use raw position to allow off-screen movement
           const point = currentPoint;
           return (
             <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={1}
-                filter="url(#glowBlur1)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={1}
-                filter="url(#glowBlur2)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={1}
-                filter="url(#glowBlur3)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={0.8}
-                filter="url(#glowBlur4)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={0.6}
-                filter="url(#glowBlur5)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={0.4}
-                filter="url(#glowBlur6)"
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                opacity={0.3}
-                filter="url(#glowBlur7)"
-              />
-              {/* Solid white center */}
               <Circle
                 cx={point.x}
                 cy={point.y}
@@ -536,6 +422,15 @@ const ArchTimer = forwardRef(({ prayerTimes, prayerNames, currentTime, width = 3
         </Animated.View>
       </View>
     </View>
+  );
+}), (prevProps, nextProps) => {
+  // Custom comparison function - only re-render if these props actually change
+  return (
+    prevProps.currentTime === nextProps.currentTime &&
+    prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime() &&
+    JSON.stringify(prevProps.prayerTimes) === JSON.stringify(nextProps.prayerTimes) &&
+    prevProps.width === nextProps.width &&
+    prevProps.height === nextProps.height
   );
 });
 

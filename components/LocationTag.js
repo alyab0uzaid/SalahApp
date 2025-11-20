@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import { COLORS, FONTS, ICON_SIZES, RADIUS, SPACING } from '../constants/theme';
 
-const LocationTag = ({ locationName, style }) => {
+const LocationTagComponent = ({ locationName, style }) => {
   if (!locationName) return null;
 
   return (
@@ -17,6 +17,11 @@ const LocationTag = ({ locationName, style }) => {
     </View>
   );
 };
+
+// Memoize component - only re-render when locationName changes
+const LocationTag = memo(LocationTagComponent, (prevProps, nextProps) => {
+  return prevProps.locationName === nextProps.locationName;
+});
 
 const styles = StyleSheet.create({
   locationTag: {

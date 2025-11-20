@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerList = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate }) => {
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate }) => {
   // State to track which prayers have notifications enabled
   const [notifications, setNotifications] = useState(
     prayerNames.reduce((acc, name) => ({ ...acc, [name]: false }), {})
@@ -142,6 +142,17 @@ const PrayerList = ({ prayerTimes, prayerNames, currentTime, style, onNotificati
     </View>
   );
 };
+
+// Memoize component to prevent unnecessary re-renders
+const PrayerList = memo(PrayerListComponent, (prevProps, nextProps) => {
+  // Return true if props are equal (skip re-render), false if different (re-render)
+  return (
+    prevProps.currentTime === nextProps.currentTime &&
+    prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime() &&
+    JSON.stringify(prevProps.prayerTimes) === JSON.stringify(nextProps.prayerTimes) &&
+    JSON.stringify(prevProps.prayerNames) === JSON.stringify(nextProps.prayerNames)
+  );
+});
 
 const styles = StyleSheet.create({
   prayerList: {
