@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
   errorText: {
     fontFamily: FONTS.weights.regular.primary,
     fontSize: FONTS.sizes.md,
-    color: COLORS.text.tertiary,
+    color: COLORS.text.primary,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
   },

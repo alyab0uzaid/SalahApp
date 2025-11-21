@@ -249,6 +249,22 @@ export default function App() {
         <QiblaCompass onBackgroundChange={handleQiblaBackgroundChange} />
       )}
 
+      {/* Tracker tab placeholder */}
+      {activeTab === 'tracker' && (
+        <View style={styles.placeholderContainer}>
+          <Text style={styles.placeholderTitle}>Tracker</Text>
+          <Text style={styles.placeholderText}>Coming Soon</Text>
+        </View>
+      )}
+
+      {/* Settings tab placeholder */}
+      {activeTab === 'settings' && (
+        <View style={styles.placeholderContainer}>
+          <Text style={styles.placeholderTitle}>Settings</Text>
+          <Text style={styles.placeholderText}>Coming Soon</Text>
+        </View>
+      )}
+
       {/* Keep home tab mounted but hidden for instant switching */}
       <ScrollView
         style={[styles.scroll, activeTab !== 'home' && styles.hidden]}
@@ -330,12 +346,12 @@ export default function App() {
 
       <View style={[
         styles.bottomNavWrapper,
-        activeTab === 'qibla' && { 
+        (activeTab === 'qibla' || activeTab === 'tracker' || activeTab === 'settings') && { 
           position: 'absolute', 
           bottom: 0, 
           left: 0, 
           right: 0,
-          backgroundColor: 'transparent',
+          backgroundColor: activeTab === 'qibla' ? 'transparent' : COLORS.background.primary,
         }
       ]}>
         <BottomNav
@@ -399,5 +415,23 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
+  },
+  placeholderContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: SPACING.lg,
+  },
+  placeholderTitle: {
+    color: COLORS.text.primary,
+    fontSize: FONTS.sizes.xxl,
+    fontFamily: FONTS.weights.medium.primary,
+    marginBottom: SPACING.md,
+  },
+  placeholderText: {
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.lg,
+    fontFamily: FONTS.weights.regular.primary,
   },
 });
