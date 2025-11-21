@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { Magnetometer } from 'expo-sensors';
 import * as Location from 'expo-location';
+import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
@@ -68,6 +69,9 @@ export default function QiblaCompass({ onBackgroundChange }) {
   const [errorMsg, setErrorMsg] = useState(null);
   const subscriptionRef = useRef(null);
   const lastAngleRef = useRef(null);
+  const wasAlignedRef = useRef(false);
+  const previousAngleRef = useRef(null);
+  const wasAtZeroRef = useRef(false);
   
   // Calculate rotateKaba (angle to rotate arrow to point to Qibla)
   const rotateKaba = magnetometer - qiblaCoordinate;
@@ -130,6 +134,9 @@ export default function QiblaCompass({ onBackgroundChange }) {
   // Animated values for smooth transitions
   const arcOpacity = useRef(new Animated.Value(1)).current;
   const bgOpacity = useRef(new Animated.Value(0)).current;
+  
+  // State for border color that animates with background
+  const [borderColor, setBorderColor] = useState(COLORS.background.primary);
 
   // Calculate arrow end dot position (on circle circumference)
   const angleRad = (rotateKaba * Math.PI) / 180;
@@ -168,8 +175,67 @@ export default function QiblaCompass({ onBackgroundChange }) {
     ? 360 - normalizedAngle
     : normalizedAngle;
   const isNearAlignment = angleFromNorth < ALIGNMENT_THRESHOLD;
+  
+  // Round angle to nearest degree for haptic feedback
+  const roundedAngle = Math.round(angleFromNorth);
 
-  // Animate opacity changes when alignment status changes
+  // Separate haptic feedback effect - doesn't interfere with animations
+  useEffect(() => {
+    if (isNearAlignment) {
+      const prevAngle = previousAngleRef.current;
+      const currentAngle = roundedAngle;
+      
+      // Check if we just entered the alignment zone
+      if (!wasAlignedRef.current) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      }
+      
+      // Pulse every degree when within threshold (only when getting closer)
+      if (prevAngle !== null && prevAngle !== currentAngle && currentAngle < ALIGNMENT_THRESHOLD) {
+        // Check if we're at 0° and moving away (triple pulse)
+        if (wasAtZeroRef.current && currentAngle > 0) {
+          // Triple pulse when moving off 0° - all Heavy
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          setTimeout(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            setTimeout(() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            }, 100);
+          }, 100);
+          wasAtZeroRef.current = false;
+        } else if (currentAngle === 0 && prevAngle !== 0) {
+          // Just reached 0° - double pulse (Heavy)
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          setTimeout(() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          }, 100);
+          wasAtZeroRef.current = true;
+        } else if (currentAngle < prevAngle) {
+          // Pulse strength increases as you get closer to 0°
+          let hapticStyle;
+          if (currentAngle >= 10) {
+            hapticStyle = Haptics.ImpactFeedbackStyle.Medium;
+          } else if (currentAngle >= 5) {
+            hapticStyle = Haptics.ImpactFeedbackStyle.Heavy;
+          } else {
+            hapticStyle = Haptics.ImpactFeedbackStyle.Heavy;
+          }
+          Haptics.impactAsync(hapticStyle);
+        }
+      }
+      
+      // Update tracking refs
+      previousAngleRef.current = currentAngle;
+      wasAlignedRef.current = true;
+    } else {
+      // Reset tracking when outside alignment zone
+      wasAlignedRef.current = false;
+      previousAngleRef.current = null;
+      wasAtZeroRef.current = false;
+    }
+  }, [isNearAlignment, roundedAngle]);
+
+  // Animate opacity changes when alignment status changes - separate from haptics
   useEffect(() => {
     Animated.timing(arcOpacity, {
       toValue: isNearAlignment ? 0 : 1,
@@ -177,16 +243,39 @@ export default function QiblaCompass({ onBackgroundChange }) {
       useNativeDriver: true,
     }).start();
 
-    Animated.timing(bgOpacity, {
+    const bgAnimation = Animated.timing(bgOpacity, {
       toValue: isNearAlignment ? 1 : 0,
       duration: 300,
       useNativeDriver: false,
-    }).start();
+    });
+
+    // Update border color to match background animation
+    bgAnimation.start(({ finished }) => {
+      if (finished) {
+        setBorderColor(isNearAlignment ? 'rgb(49, 199, 86)' : COLORS.background.primary);
+      }
+    });
+
+    // Also update border color immediately for smoother transition
+    const listener = bgOpacity.addListener(({ value }) => {
+      // Interpolate between background color (#0A090E) and green (rgb(49, 199, 86))
+      const bgR = parseInt(COLORS.background.primary.slice(1, 3), 16); // 10
+      const bgG = parseInt(COLORS.background.primary.slice(3, 5), 16); // 9
+      const bgB = parseInt(COLORS.background.primary.slice(5, 7), 16); // 14
+      const r = Math.round(bgR * (1 - value) + 49 * value);
+      const g = Math.round(bgG * (1 - value) + 199 * value);
+      const b = Math.round(bgB * (1 - value) + 86 * value);
+      setBorderColor(`rgb(${r}, ${g}, ${b})`);
+    });
 
     // Notify parent of background color change
     if (onBackgroundChange) {
       onBackgroundChange(isNearAlignment);
     }
+
+    return () => {
+      bgOpacity.removeListener(listener);
+    };
   }, [isNearAlignment, onBackgroundChange]);
 
   if (isLoading) {
@@ -219,7 +308,7 @@ export default function QiblaCompass({ onBackgroundChange }) {
               d={arcPath}
               fill="none"
               stroke="rgba(255, 255, 255, 0.3)"
-              strokeWidth="3"
+              strokeWidth="5"
               strokeLinecap="round"
             />
 
@@ -227,8 +316,17 @@ export default function QiblaCompass({ onBackgroundChange }) {
             <Circle
               cx={TOP_DOT_X}
               cy={TOP_DOT_Y}
-              r={8}
+              r={10}
               fill="#FFFFFF"
+            />
+            {/* Top dot border ring - animates to green when aligned */}
+            <Circle
+              cx={TOP_DOT_X}
+              cy={TOP_DOT_Y}
+              r={10}
+              fill="none"
+              stroke={borderColor}
+              strokeWidth="4"
             />
           </Svg>
         </Animated.View>
@@ -240,6 +338,15 @@ export default function QiblaCompass({ onBackgroundChange }) {
             cy={arrowEndY}
             r={10}
             fill="#FFFFFF"
+          />
+          {/* Arrow end dot border ring - animates to green when aligned */}
+          <Circle
+            cx={arrowEndX}
+            cy={arrowEndY}
+            r={10}
+            fill="none"
+            stroke={borderColor}
+            strokeWidth="4"
           />
         </Svg>
 
