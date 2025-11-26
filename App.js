@@ -36,6 +36,15 @@ export default function App() {
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
+  
+  // Reset PrayerList when returning to home tab to fix gesture handler
+  const handleTabChange = (tab) => {
+    if (tab === 'home' && activeTab !== 'home') {
+      // Coming back to home - remount PrayerList to reset gesture handlers
+      setPrayerListKey(prev => prev + 1);
+    }
+    setActiveTab(tab);
+  };
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -43,6 +52,9 @@ export default function App() {
   // State to track prayer status (on-time/late) per date and prayer
   // Structure: { [dateKey]: { [prayerName]: 'on-time' | 'late' } }
   const [prayerStatus, setPrayerStatus] = useState({});
+  
+  // Key to force remount of PrayerList when returning to home tab (fixes gesture handler issue)
+  const [prayerListKey, setPrayerListKey] = useState(0);
 
   // Cache today's prayer times to avoid recalculation when switching back
   const todayPrayerTimesRef = useRef(null);
@@ -373,6 +385,7 @@ export default function App() {
           style={styles.datePicker}
         />
         <PrayerList
+          key={prayerListKey}
           prayerTimes={prayerTimes}
           prayerNames={prayerNames}
           currentTime={currentTime}
@@ -395,7 +408,7 @@ export default function App() {
       ]}>
         <BottomNav
           activeTab={activeTab}
-          onTabPress={setActiveTab}
+          onTabPress={handleTabChange}
         />
       </View>
       </Animated.View>
