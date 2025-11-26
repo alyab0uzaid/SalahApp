@@ -7,17 +7,17 @@
 
 // Color Palette
 export const COLORS = {
-  // Background colors
+  // Background colors - warm neutral tones (same shade, no blue tint)
   background: {
-    primary: '#0A090E',      // Main app background
-    secondary: '#15141A',    // Card/container background
-    tertiary: '#1F1E26',     // Highlighted containers
+    primary: '#0D0C0E',      // Main app background
+    secondary: '#151314',    // Card/container background
+    tertiary: '#1F1E20',     // Highlighted containers
   },
 
-  // Border colors
+  // Border colors - warm neutral tones
   border: {
-    primary: '#23232A',      // Default borders
-    secondary: '#26282C',    // Subtle borders
+    primary: '#232225',      // Default borders
+    secondary: '#262528',    // Subtle borders
   },
 
   // Text colors
@@ -32,7 +32,7 @@ export const COLORS = {
   // Accent colors
   accent: {
     white: '#FFFFFF',        // White accents/highlights
-    gradient: '#232327',     // Gradient stops
+    gradient: '#232225',     // Gradient stops
   },
 };
 

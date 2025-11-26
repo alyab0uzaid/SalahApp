@@ -238,7 +238,65 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
         const { isPast, isCurrent } = getPrayerStatus(index);
         const hasNotification = notifications[name];
         const prayerStatusValue = getPrayerStatusForDate(name);
+        const isSunrise = name.toLowerCase() === 'sunrise';
 
+        const prayerRowContent = (
+          <View style={styles.prayerRow}>
+            <View style={styles.prayerRowContent}>
+              <View style={styles.prayerInfo}>
+                <MaterialCommunityIcons
+                  name={iconName}
+                  size={22}
+                  color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
+                />
+                <Text style={[
+                  styles.prayerName,
+                  isPast && styles.prayerNamePast,
+                  isCurrent && styles.prayerNameActive
+                ]}>
+                  {name}
+                </Text>
+                {prayerStatusValue && (
+                  <View style={[
+                    styles.statusBadge,
+                    prayerStatusValue === 'on-time' ? styles.statusBadgeOnTime : styles.statusBadgeLate
+                  ]} />
+                )}
+              </View>
+              <View style={styles.timeAndBell}>
+                <Text style={[
+                  styles.prayerTimeText,
+                  isPast && styles.prayerTimeTextPast,
+                  isCurrent && styles.prayerTimeTextActive
+                ]}>
+                  {time}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => handleBellPress(name)}
+                  style={styles.bellButton}
+                  activeOpacity={0.6}
+                >
+                  <MaterialCommunityIcons
+                    name={hasNotification ? 'bell' : 'bell-outline'}
+                    size={22}
+                    color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
+                  />
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        );
+
+        // Sunrise is not a prayer, so it shouldn't be swipeable
+        if (isSunrise) {
+          return (
+            <View key={name} style={styles.swipeableContainer}>
+              {prayerRowContent}
+            </View>
+          );
+        }
+
+        // Regular prayers are swipeable
         return (
           <Swipeable
             key={name}
@@ -279,50 +337,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
             leftThreshold={1000}
             containerStyle={styles.swipeableContainer}
           >
-            <View style={styles.prayerRow}>
-              <View style={styles.prayerRowContent}>
-                <View style={styles.prayerInfo}>
-                  <MaterialCommunityIcons
-                    name={iconName}
-                    size={22}
-                    color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
-                  />
-                  <Text style={[
-                    styles.prayerName,
-                    isPast && styles.prayerNamePast,
-                    isCurrent && styles.prayerNameActive
-                  ]}>
-                    {name}
-                  </Text>
-                  {prayerStatusValue && (
-                    <View style={[
-                      styles.statusBadge,
-                      prayerStatusValue === 'on-time' ? styles.statusBadgeOnTime : styles.statusBadgeLate
-                    ]} />
-                  )}
-                </View>
-                <View style={styles.timeAndBell}>
-                  <Text style={[
-                    styles.prayerTimeText,
-                    isPast && styles.prayerTimeTextPast,
-                    isCurrent && styles.prayerTimeTextActive
-                  ]}>
-                    {time}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => handleBellPress(name)}
-                    style={styles.bellButton}
-                    activeOpacity={0.6}
-                  >
-                    <MaterialCommunityIcons
-                      name={hasNotification ? 'bell' : 'bell-outline'}
-                      size={22}
-                      color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
+            {prayerRowContent}
           </Swipeable>
         );
       })}
@@ -349,7 +364,7 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm,
     paddingLeft: SPACING.md,
     paddingRight: SPACING.md,
-    backgroundColor: 'rgb(13, 12, 18)',
+    backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md, // Prayer row has rounded corners
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
@@ -403,30 +418,30 @@ const styles = StyleSheet.create({
   },
   // Swipe action styles - icons positioned near edges
   rightAction: {
-    backgroundColor: '#4CAF50', // Green for "on time"
+    backgroundColor: '#81C784', // Muted green for "on time"
     justifyContent: 'center',
     alignItems: 'flex-end', // Align to right edge
     paddingRight: 16, // 16px from edge
     flex: 1, // Take full available width
   },
   leftAction: {
-    backgroundColor: '#FF6B35', // Orange for "late"
+    backgroundColor: '#FF9A76', // More orange-leaning coral for "late"
     justifyContent: 'center',
     alignItems: 'flex-start', // Align to left edge
     paddingLeft: 16, // 16px from edge
     flex: 1, // Take full available width
   },
   statusBadge: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
     marginLeft: SPACING.sm,
   },
   statusBadgeOnTime: {
-    backgroundColor: '#4CAF50', // Green for on-time
+    backgroundColor: '#81C784', // Softer muted green for on-time
   },
   statusBadgeLate: {
-    backgroundColor: '#FF6B35', // Orange for late
+    backgroundColor: '#FF9A76', // More orange-leaning coral for late
   },
 });
 
