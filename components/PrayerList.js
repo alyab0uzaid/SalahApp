@@ -29,10 +29,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
     return (
       <Animated.View style={[styles.rightAction, { opacity }]}>
-        <View style={styles.actionContent}>
-          <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
-          <Text style={styles.actionText}>On time</Text>
-        </View>
+        <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
       </Animated.View>
     );
   };
@@ -46,10 +43,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
     return (
       <Animated.View style={[styles.leftAction, { opacity }]}>
-        <View style={styles.actionContent}>
-          <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
-          <Text style={styles.actionText}>Late</Text>
-        </View>
+        <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
       </Animated.View>
     );
   };
@@ -283,15 +277,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start', // Align to left edge
     paddingLeft: 16, // 16px from edge
     flex: 1, // Take full available width
-  },
-  actionContent: {
-    alignItems: 'center', // Center align icon and text together
-  },
-  actionText: {
-    color: '#fff',
-    fontSize: 13,
-    fontFamily: FONTS.weights.medium.primary,
-    marginTop: SPACING.xs / 2,
   },
 });
 
