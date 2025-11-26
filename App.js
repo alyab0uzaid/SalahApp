@@ -39,6 +39,10 @@ export default function App() {
   const [contentHeight, setContentHeight] = useState(0);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
+  
+  // State to track prayer status (on-time/late) per date and prayer
+  // Structure: { [dateKey]: { [prayerName]: 'on-time' | 'late' } }
+  const [prayerStatus, setPrayerStatus] = useState({});
 
   // Cache today's prayer times to avoid recalculation when switching back
   const todayPrayerTimesRef = useRef(null);
@@ -208,6 +212,20 @@ export default function App() {
     }).start();
   };
 
+  // Handle prayer status update (on-time or late)
+  const handlePrayerStatusUpdate = (prayerName, status) => {
+    // Create a date key (YYYY-MM-DD format)
+    const dateKey = selectedDate.toISOString().split('T')[0];
+    
+    setPrayerStatus(prev => ({
+      ...prev,
+      [dateKey]: {
+        ...(prev[dateKey] || {}),
+        [prayerName]: status,
+      },
+    }));
+  };
+
   // Interpolate background color
   const backgroundColor = qiblaBgOpacity.interpolate({
     inputRange: [0, 1],
@@ -343,6 +361,8 @@ export default function App() {
           currentTime={currentTime}
           style={styles.prayerList}
           selectedDate={selectedDate}
+          onPrayerStatusUpdate={handlePrayerStatusUpdate}
+          prayerStatus={prayerStatus}
         />
       </ScrollView>
 

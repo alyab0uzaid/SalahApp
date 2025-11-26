@@ -1,15 +1,18 @@
-import React, { useState, memo } from 'react';
+import React, { useState, memo, useRef, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate }) => {
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate, onPrayerStatusUpdate, prayerStatus }) => {
   // State to track which prayers have notifications enabled
   const [notifications, setNotifications] = useState(
     prayerNames.reduce((acc, name) => ({ ...acc, [name]: false }), {})
   );
+
+  // Local state to track prayer status for immediate UI updates
+  const [localPrayerStatus, setLocalPrayerStatus] = useState({});
 
   const handleBellPress = (prayerName) => {
     const newState = !notifications[prayerName];
@@ -47,6 +50,19 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
       </Animated.View>
     );
   };
+  
+  // Create wrapper functions - just pass through, we'll detect direction on close
+  const createRightActionsRenderer = (prayerName) => {
+    return (progress, dragX) => {
+      return renderRightActions(progress);
+    };
+  };
+  
+  const createLeftActionsRenderer = (prayerName) => {
+    return (progress, dragX) => {
+      return renderLeftActions(progress);
+    };
+  };
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
   
@@ -65,6 +81,91 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
   };
 
   const isCurrentDateToday = isToday();
+
+  // Get date key for prayer status lookup
+  const getDateKey = () => {
+    if (!selectedDate) return null;
+    return selectedDate.toISOString().split('T')[0];
+  };
+
+  // Get prayer status for current date - check both local and parent state
+  const getPrayerStatusForDate = (prayerName) => {
+    const dateKey = getDateKey();
+    
+    // First check local state for immediate updates
+    if (localPrayerStatus[dateKey] && localPrayerStatus[dateKey][prayerName]) {
+      return localPrayerStatus[dateKey][prayerName];
+    }
+    
+    // Then check parent state
+    if (dateKey && prayerStatus && prayerStatus[dateKey]) {
+      return prayerStatus[dateKey][prayerName] || null;
+    }
+    
+    return null;
+  };
+
+  // Refs to control swipeable components
+  const swipeableRefs = useRef({});
+  
+  // Track swipe state to detect when user releases
+  const swipeStateRef = useRef({});
+
+  // Sync local state with parent state when date changes or parent state updates
+  useEffect(() => {
+    if (!selectedDate) return;
+    const dateKey = selectedDate.toISOString().split('T')[0];
+    if (dateKey && prayerStatus && prayerStatus[dateKey]) {
+      // Update local state with parent state for the current date
+      setLocalPrayerStatus(prev => ({
+        ...prev,
+        [dateKey]: prayerStatus[dateKey],
+      }));
+    }
+  }, [selectedDate, prayerStatus]);
+
+  // Handle swipe completion - use ref to prevent multiple calls
+  const handleSwipeComplete = (prayerName, direction, swipeableRef) => {
+    if (!onPrayerStatusUpdate) return;
+    
+    // Prevent duplicate calls for the same prayer
+    const dateKey = getDateKey();
+    const stateKey = `${dateKey}-${prayerName}`;
+    if (swipeStateRef.current[`_processed_${stateKey}`]) {
+      return; // Already processed
+    }
+    swipeStateRef.current[`_processed_${stateKey}`] = true;
+    
+    // direction: 'right' = on-time (green), 'left' = late (orange)
+    const status = direction === 'right' ? 'on-time' : 'late';
+    
+    // Update local state immediately for instant UI feedback
+    if (dateKey) {
+      setLocalPrayerStatus(prev => {
+        const newState = {
+          ...prev,
+          [dateKey]: {
+            ...(prev[dateKey] || {}),
+            [prayerName]: status,
+          },
+        };
+        return newState;
+      });
+    }
+    
+    // Update parent state
+    onPrayerStatusUpdate(prayerName, status);
+    
+    // Close the swipeable after marking
+    if (swipeableRef) {
+      swipeableRef.close();
+    }
+    
+    // Clear processed flag after a delay
+    setTimeout(() => {
+      delete swipeStateRef.current[`_processed_${stateKey}`];
+    }, 500);
+  };
 
   // Determine which prayer is current and which are past (only if viewing today)
   const getPrayerStatus = (index) => {
@@ -127,12 +228,41 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
         const { isPast, isCurrent } = getPrayerStatus(index);
         const hasNotification = notifications[name];
+        const prayerStatusValue = getPrayerStatusForDate(name);
 
         return (
           <Swipeable
             key={name}
-            renderRightActions={renderRightActions}
-            renderLeftActions={renderLeftActions}
+            ref={(ref) => {
+              if (ref) {
+                swipeableRefs.current[name] = ref;
+              }
+            }}
+            renderRightActions={createRightActionsRenderer(name)}
+            renderLeftActions={createLeftActionsRenderer(name)}
+            onSwipeableWillOpen={(direction) => {
+              // Track direction when threshold is reached
+              if (!swipeStateRef.current[name]) {
+                swipeStateRef.current[name] = {};
+              }
+              swipeStateRef.current[name].direction = direction;
+              swipeStateRef.current[name].hasSwiped = true;
+            }}
+            onSwipeableClose={(direction) => {
+              // When user releases, mark the prayer using the direction
+              // Use tracked direction if available, otherwise use close direction
+              const swipeState = swipeStateRef.current[name];
+              const finalDirection = (swipeState && swipeState.direction) || direction;
+              
+              if (finalDirection) {
+                const swipeableRef = swipeableRefs.current[name];
+                handleSwipeComplete(name, finalDirection, swipeableRef);
+              }
+              // Clear state
+              if (swipeStateRef.current[name]) {
+                delete swipeStateRef.current[name];
+              }
+            }}
             overshootRight={false}
             overshootLeft={false}
             friction={2}
@@ -155,6 +285,12 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
                   ]}>
                     {name}
                   </Text>
+                  {prayerStatusValue && (
+                    <View style={[
+                      styles.statusBadge,
+                      prayerStatusValue === 'on-time' ? styles.statusBadgeOnTime : styles.statusBadgeLate
+                    ]} />
+                  )}
                 </View>
                 <View style={styles.timeAndBell}>
                   <Text style={[
@@ -186,15 +322,8 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 };
 
 // Memoize component to prevent unnecessary re-renders
-const PrayerList = memo(PrayerListComponent, (prevProps, nextProps) => {
-  // Return true if props are equal (skip re-render), false if different (re-render)
-  return (
-    prevProps.currentTime === nextProps.currentTime &&
-    prevProps.selectedDate?.getTime() === nextProps.selectedDate?.getTime() &&
-    JSON.stringify(prevProps.prayerTimes) === JSON.stringify(nextProps.prayerTimes) &&
-    JSON.stringify(prevProps.prayerNames) === JSON.stringify(nextProps.prayerNames)
-  );
-});
+// Note: We're not memoizing too aggressively to allow local state updates to show immediately
+const PrayerList = memo(PrayerListComponent);
 
 const styles = StyleSheet.create({
   prayerList: {
@@ -277,6 +406,18 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start', // Align to left edge
     paddingLeft: 16, // 16px from edge
     flex: 1, // Take full available width
+  },
+  statusBadge: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginLeft: SPACING.sm,
+  },
+  statusBadgeOnTime: {
+    backgroundColor: '#4CAF50', // Green for on-time
+  },
+  statusBadgeLate: {
+    backgroundColor: '#FF6B35', // Orange for late
   },
 });
 
