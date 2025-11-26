@@ -137,7 +137,11 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
     swipeStateRef.current[`_processed_${stateKey}`] = true;
     
     // direction: 'right' = on-time (green), 'left' = late (orange)
-    const status = direction === 'right' ? 'on-time' : 'late';
+    const newStatus = direction === 'right' ? 'on-time' : 'late';
+    
+    // Check current status to toggle
+    const currentStatus = getPrayerStatusForDate(prayerName);
+    const status = currentStatus === newStatus ? null : newStatus; // Toggle: if same, remove; otherwise set
     
     // Update local state immediately for instant UI feedback
     if (dateKey) {
@@ -149,6 +153,11 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
             [prayerName]: status,
           },
         };
+        // Remove the key if status is null
+        if (status === null && newState[dateKey][prayerName] === null) {
+          const { [prayerName]: _, ...rest } = newState[dateKey];
+          newState[dateKey] = rest;
+        }
         return newState;
       });
     }

@@ -212,18 +212,35 @@ export default function App() {
     }).start();
   };
 
-  // Handle prayer status update (on-time or late)
+  // Handle prayer status update (on-time or late, or null to remove)
   const handlePrayerStatusUpdate = (prayerName, status) => {
     // Create a date key (YYYY-MM-DD format)
     const dateKey = selectedDate.toISOString().split('T')[0];
     
-    setPrayerStatus(prev => ({
-      ...prev,
-      [dateKey]: {
-        ...(prev[dateKey] || {}),
-        [prayerName]: status,
-      },
-    }));
+    setPrayerStatus(prev => {
+      const newState = {
+        ...prev,
+        [dateKey]: {
+          ...(prev[dateKey] || {}),
+        },
+      };
+      
+      if (status === null) {
+        // Remove the status if null
+        const { [prayerName]: _, ...rest } = newState[dateKey];
+        newState[dateKey] = rest;
+        // Remove the date key if it's now empty
+        if (Object.keys(newState[dateKey]).length === 0) {
+          const { [dateKey]: __, ...restDates } = newState;
+          return restDates;
+        }
+      } else {
+        // Set the status
+        newState[dateKey][prayerName] = status;
+      }
+      
+      return newState;
+    });
   };
 
   // Interpolate background color
