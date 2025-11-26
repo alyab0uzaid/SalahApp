@@ -29,8 +29,10 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
     return (
       <Animated.View style={[styles.rightAction, { opacity }]}>
-        <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
-        <Text style={styles.actionText}>On time</Text>
+        <View style={styles.actionContent}>
+          <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
+          <Text style={styles.actionText}>On time</Text>
+        </View>
       </Animated.View>
     );
   };
@@ -44,8 +46,10 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
     return (
       <Animated.View style={[styles.leftAction, { opacity }]}>
-        <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
-        <Text style={styles.actionText}>Late</Text>
+        <View style={styles.actionContent}>
+          <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
+          <Text style={styles.actionText}>Late</Text>
+        </View>
       </Animated.View>
     );
   };
@@ -140,6 +144,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
             friction={2}
             rightThreshold={1000}
             leftThreshold={1000}
+            containerStyle={styles.swipeableContainer}
           >
             <View style={styles.prayerRow}>
               <View style={styles.prayerRowContent}>
@@ -203,16 +208,19 @@ const styles = StyleSheet.create({
     marginTop: 0, // Spacing handled by wrapper in App.js
     alignSelf: 'center',
   },
+  swipeableContainer: {
+    borderRadius: RADIUS.md, // Rounded corners for swipeable container
+    marginBottom: SPACING.sm, // Spacing between prayers
+    overflow: 'hidden', // Clip everything to rounded corners
+  },
   prayerRow: {
     paddingVertical: SPACING.sm,
     paddingLeft: SPACING.md,
     paddingRight: SPACING.md,
     backgroundColor: 'rgb(13, 12, 18)',
-    borderRadius: RADIUS.md, // Rounded corners for each prayer
-    marginBottom: SPACING.sm, // Spacing between prayers
+    borderRadius: RADIUS.md, // Prayer row has rounded corners
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
-    overflow: 'hidden', // Ensure swipe actions respect border radius
   },
   prayerRowContent: {
     flexDirection: 'row',
@@ -261,24 +269,23 @@ const styles = StyleSheet.create({
     paddingRight: 0,
     marginLeft: SPACING.sm,
   },
-  // Swipe action styles - full width backgrounds with icons at edges
+  // Swipe action styles - icons positioned near edges
   rightAction: {
     backgroundColor: '#4CAF50', // Green for "on time"
     justifyContent: 'center',
-    alignItems: 'flex-end', // Align to right edge (swipe right reveals right side)
-    paddingRight: SPACING.sm, // Padding from right edge
+    alignItems: 'flex-end', // Align to right edge
+    paddingRight: 16, // 16px from edge
     flex: 1, // Take full available width
-    borderRadius: RADIUS.md, // All corners rounded
-    marginBottom: SPACING.sm, // Match prayer row spacing
   },
   leftAction: {
     backgroundColor: '#FF6B35', // Orange for "late"
     justifyContent: 'center',
-    alignItems: 'flex-start', // Align to left edge (swipe left reveals left side)
-    paddingLeft: SPACING.sm, // Padding from left edge
+    alignItems: 'flex-start', // Align to left edge
+    paddingLeft: 16, // 16px from edge
     flex: 1, // Take full available width
-    borderRadius: RADIUS.md, // All corners rounded
-    marginBottom: SPACING.sm, // Match prayer row spacing
+  },
+  actionContent: {
+    alignItems: 'center', // Center align icon and text together
   },
   actionText: {
     color: '#fff',
