@@ -1,6 +1,7 @@
 import React, { useState, memo } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
@@ -16,6 +17,37 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
     if (onNotificationToggle) {
       onNotificationToggle(prayerName, newState);
     }
+  };
+
+
+  // Right swipe action - "On Time" (green background with opacity based on swipe progress)
+  const renderRightActions = (progress) => {
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.3, 1],
+      outputRange: [0.2, 1, 1], // Reach full opacity at 30% swipe
+    });
+
+    return (
+      <Animated.View style={[styles.rightAction, { opacity }]}>
+        <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
+        <Text style={styles.actionText}>On time</Text>
+      </Animated.View>
+    );
+  };
+
+  // Left swipe action - "Late" (orange background with opacity based on swipe progress)
+  const renderLeftActions = (progress) => {
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.3, 1],
+      outputRange: [0.2, 1, 1], // Reach full opacity at 30% swipe
+    });
+
+    return (
+      <Animated.View style={[styles.leftAction, { opacity }]}>
+        <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
+        <Text style={styles.actionText}>Late</Text>
+      </Animated.View>
+    );
   };
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
@@ -99,44 +131,55 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
         const hasNotification = notifications[name];
 
         return (
-          <View key={name} style={styles.prayerRow}>
-            <View style={styles.prayerRowContent}>
-              <View style={styles.prayerInfo}>
-                <MaterialCommunityIcons
-                  name={iconName}
-                  size={22}
-                  color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
-                />
-                <Text style={[
-                  styles.prayerName, 
-                  isPast && styles.prayerNamePast,
-                  isCurrent && styles.prayerNameActive
-                ]}>
-                  {name}
-                </Text>
-              </View>
-              <View style={styles.timeAndBell}>
-                <Text style={[
-                  styles.prayerTimeText, 
-                  isPast && styles.prayerTimeTextPast,
-                  isCurrent && styles.prayerTimeTextActive
-                ]}>
-                  {time}
-                </Text>
-                <TouchableOpacity
-                  onPress={() => handleBellPress(name)}
-                  style={styles.bellButton}
-                  activeOpacity={0.6}
-                >
+          <Swipeable
+            key={name}
+            renderRightActions={renderRightActions}
+            renderLeftActions={renderLeftActions}
+            overshootRight={false}
+            overshootLeft={false}
+            friction={2}
+            rightThreshold={1000}
+            leftThreshold={1000}
+          >
+            <View style={styles.prayerRow}>
+              <View style={styles.prayerRowContent}>
+                <View style={styles.prayerInfo}>
                   <MaterialCommunityIcons
-                    name={hasNotification ? 'bell' : 'bell-outline'}
+                    name={iconName}
                     size={22}
-                    color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
+                    color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
                   />
-                </TouchableOpacity>
+                  <Text style={[
+                    styles.prayerName,
+                    isPast && styles.prayerNamePast,
+                    isCurrent && styles.prayerNameActive
+                  ]}>
+                    {name}
+                  </Text>
+                </View>
+                <View style={styles.timeAndBell}>
+                  <Text style={[
+                    styles.prayerTimeText,
+                    isPast && styles.prayerTimeTextPast,
+                    isCurrent && styles.prayerTimeTextActive
+                  ]}>
+                    {time}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => handleBellPress(name)}
+                    style={styles.bellButton}
+                    activeOpacity={0.6}
+                  >
+                    <MaterialCommunityIcons
+                      name={hasNotification ? 'bell' : 'bell-outline'}
+                      size={22}
+                      color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
-          </View>
+          </Swipeable>
         );
       })}
     </View>
@@ -158,19 +201,18 @@ const styles = StyleSheet.create({
   prayerList: {
     width: '90%',
     marginTop: 0, // Spacing handled by wrapper in App.js
-    backgroundColor: 'rgba(21, 20, 26, 0.3)', // Semi-transparent glass effect
-    borderRadius: RADIUS.md,
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.08)', // Subtle glass border
     alignSelf: 'center',
-    overflow: 'hidden',
   },
   prayerRow: {
     paddingVertical: SPACING.sm,
-    paddingLeft: SPACING.sm,
-    paddingRight: SPACING.sm,
+    paddingLeft: SPACING.md,
+    paddingRight: SPACING.md,
+    backgroundColor: 'rgb(13, 12, 18)',
+    borderRadius: RADIUS.md, // Rounded corners for each prayer
+    marginBottom: SPACING.sm, // Spacing between prayers
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden', // Ensure swipe actions respect border radius
   },
   prayerRowContent: {
     flexDirection: 'row',
@@ -218,6 +260,31 @@ const styles = StyleSheet.create({
     paddingLeft: SPACING.sm,
     paddingRight: 0,
     marginLeft: SPACING.sm,
+  },
+  // Swipe action styles - full width backgrounds with icons at edges
+  rightAction: {
+    backgroundColor: '#4CAF50', // Green for "on time"
+    justifyContent: 'center',
+    alignItems: 'flex-end', // Align to right edge (swipe right reveals right side)
+    paddingRight: SPACING.sm, // Padding from right edge
+    flex: 1, // Take full available width
+    borderRadius: RADIUS.md, // All corners rounded
+    marginBottom: SPACING.sm, // Match prayer row spacing
+  },
+  leftAction: {
+    backgroundColor: '#FF6B35', // Orange for "late"
+    justifyContent: 'center',
+    alignItems: 'flex-start', // Align to left edge (swipe left reveals left side)
+    paddingLeft: SPACING.sm, // Padding from left edge
+    flex: 1, // Take full available width
+    borderRadius: RADIUS.md, // All corners rounded
+    marginBottom: SPACING.sm, // Match prayer row spacing
+  },
+  actionText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: FONTS.weights.medium.primary,
+    marginTop: SPACING.xs / 2,
   },
 });
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import ArchTimer from './components/ArchTimer';
@@ -238,11 +239,12 @@ export default function App() {
   }
 
   return (
-    <Animated.View style={[
-      styles.container,
-      activeTab === 'qibla' && { backgroundColor, justifyContent: 'center' }
-    ]} clipsToBounds={false}>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Animated.View style={[
+        styles.container,
+        activeTab === 'qibla' && { backgroundColor, justifyContent: 'center' }
+      ]} clipsToBounds={false}>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
 
       {/* Show Qibla compass when qibla tab is active */}
       {activeTab === 'qibla' && (
@@ -359,7 +361,8 @@ export default function App() {
           onTabPress={setActiveTab}
         />
       </View>
-    </Animated.View>
+      </Animated.View>
+    </GestureHandlerRootView>
   );
 }
 
