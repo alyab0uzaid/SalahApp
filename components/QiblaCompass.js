@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
-const COMPASS_SIZE = width * 0.8;
+const COMPASS_SIZE = width * 0.95; // Increased from 0.8 to 0.95 for bigger compass
 
 // Fixed circle parameters
 const CIRCLE_RADIUS = COMPASS_SIZE * 0.35;
@@ -308,7 +308,7 @@ export default function QiblaCompass({ onBackgroundChange }) {
               d={arcPath}
               fill="none"
               stroke="rgba(255, 255, 255, 0.3)"
-              strokeWidth="5"
+              strokeWidth="10"
               strokeLinecap="round"
             />
 
@@ -316,17 +316,17 @@ export default function QiblaCompass({ onBackgroundChange }) {
             <Circle
               cx={TOP_DOT_X}
               cy={TOP_DOT_Y}
-              r={10}
+              r={18}
               fill="#FFFFFF"
             />
             {/* Top dot border ring - animates to green when aligned */}
             <Circle
               cx={TOP_DOT_X}
               cy={TOP_DOT_Y}
-              r={10}
+              r={18}
               fill="none"
               stroke={borderColor}
-              strokeWidth="4"
+              strokeWidth="6"
             />
           </Svg>
         </Animated.View>
@@ -336,17 +336,17 @@ export default function QiblaCompass({ onBackgroundChange }) {
           <Circle
             cx={arrowEndX}
             cy={arrowEndY}
-            r={10}
+            r={18}
             fill="#FFFFFF"
           />
           {/* Arrow end dot border ring - animates to green when aligned */}
           <Circle
             cx={arrowEndX}
             cy={arrowEndY}
-            r={10}
+            r={18}
             fill="none"
             stroke={borderColor}
-            strokeWidth="4"
+            strokeWidth="6"
           />
         </Svg>
 
@@ -355,15 +355,15 @@ export default function QiblaCompass({ onBackgroundChange }) {
           styles.arrowContainer,
           {
             transform: [
-              { translateX: -(CIRCLE_RADIUS * 1.8) / 2 },
-              { translateY: -(CIRCLE_RADIUS * 1.8) / 2 },
+              { translateX: -(CIRCLE_RADIUS * 2.2) / 2 },
+              { translateY: -(CIRCLE_RADIUS * 2.2) / 2 },
               { rotate: `${rotateKaba}deg` }
             ]
           }
         ]}>
           <MaterialCommunityIcons
             name="arrow-up"
-            size={CIRCLE_RADIUS * 1.8}
+            size={CIRCLE_RADIUS * 2.2}
             color="#FFFFFF"
           />
         </View>

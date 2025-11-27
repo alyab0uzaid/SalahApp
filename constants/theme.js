@@ -20,13 +20,13 @@ export const COLORS = {
     secondary: '#262528',    // Subtle borders
   },
 
-  // Text colors
+  // Text colors - warm neutral tones
   text: {
     primary: '#FFFFFF',      // Main text
-    secondary: '#B0B0B8',    // Dimmed text
+    secondary: '#B0B0B0',    // Dimmed text (neutral gray)
     tertiary: '#999',        // Placeholder/hint text
     disabled: '#666',        // Disabled/past items
-    faded: '#5F5F68',        // Very faded text
+    faded: '#5F5F5F',        // Very faded text (neutral gray, no blue tint)
   },
 
   // Accent colors
