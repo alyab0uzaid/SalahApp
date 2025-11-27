@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer }) => {
+const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer, notificationEnabled, onNotificationToggle }) => {
   // Snap points for the bottom sheet - 75% of screen height
   const snapPoints = useMemo(() => ['75%'], []);
 
@@ -34,6 +35,53 @@ const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer }) => {
       <BottomSheetView style={styles.contentContainer}>
         <Text style={styles.prayerTitle}>{selectedPrayer.name}</Text>
         <Text style={styles.prayerTime}>{selectedPrayer.time}</Text>
+
+        {/* Notification Toggle Section */}
+        <View style={styles.optionSection}>
+          <Text style={styles.sectionTitle}>Notifications</Text>
+
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              notificationEnabled && styles.optionButtonActive
+            ]}
+            onPress={() => onNotificationToggle && onNotificationToggle(true)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name="bell"
+              size={24}
+              color={notificationEnabled ? COLORS.text.primary : COLORS.text.secondary}
+            />
+            <Text style={[
+              styles.optionText,
+              notificationEnabled && styles.optionTextActive
+            ]}>
+              Notify me
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.optionButton,
+              !notificationEnabled && styles.optionButtonActive
+            ]}
+            onPress={() => onNotificationToggle && onNotificationToggle(false)}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons
+              name="bell-off-outline"
+              size={24}
+              color={!notificationEnabled ? COLORS.text.primary : COLORS.text.secondary}
+            />
+            <Text style={[
+              styles.optionText,
+              !notificationEnabled && styles.optionTextActive
+            ]}>
+              Silent
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Prayer Details</Text>
@@ -72,6 +120,35 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.weights.regular.primary,
     color: COLORS.text.secondary,
     marginBottom: SPACING.lg,
+  },
+  optionSection: {
+    marginTop: SPACING.md,
+    marginBottom: SPACING.xl,
+  },
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    backgroundColor: COLORS.background.tertiary,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  optionButtonActive: {
+    borderColor: COLORS.text.primary,
+    backgroundColor: COLORS.background.primary,
+  },
+  optionText: {
+    fontSize: 17,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.secondary,
+    marginLeft: SPACING.md,
+  },
+  optionTextActive: {
+    color: COLORS.text.primary,
+    fontFamily: FONTS.weights.medium.primary,
   },
   infoSection: {
     marginTop: SPACING.md,

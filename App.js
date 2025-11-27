@@ -53,7 +53,16 @@ export default function App() {
   // State to track prayer status (on-time/late) per date and prayer
   // Structure: { [dateKey]: { [prayerName]: 'on-time' | 'late' } }
   const [prayerStatus, setPrayerStatus] = useState({});
-  
+
+  // State to track which prayers have notifications enabled
+  // Default: All prayers enabled except Sunrise
+  const [notifications, setNotifications] = useState(
+    prayerNames.reduce((acc, name) => ({
+      ...acc,
+      [name]: name.toLowerCase() !== 'sunrise'
+    }), {})
+  );
+
   // Key to force remount of PrayerList when returning to home tab (fixes gesture handler issue)
   const [prayerListKey, setPrayerListKey] = useState(0);
 
@@ -238,6 +247,16 @@ export default function App() {
     }, 200);
   };
 
+  // Handle notification toggle from bottom sheet
+  const handleNotificationToggle = (enabled) => {
+    if (selectedPrayer) {
+      setNotifications(prev => ({
+        ...prev,
+        [selectedPrayer.name]: enabled
+      }));
+    }
+  };
+
   // Handle prayer status update (on-time or late, or null to remove)
   const handlePrayerStatusUpdate = (prayerName, status) => {
     // Create a date key (YYYY-MM-DD format)
@@ -408,6 +427,7 @@ export default function App() {
           onPrayerStatusUpdate={handlePrayerStatusUpdate}
           prayerStatus={prayerStatus}
           onPrayerPress={handlePrayerPress}
+          notifications={notifications}
         />
       </ScrollView>
 
@@ -431,6 +451,8 @@ export default function App() {
       <PrayerDetailsBottomSheet
         bottomSheetRef={bottomSheetRef}
         selectedPrayer={selectedPrayer}
+        notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
+        onNotificationToggle={handleNotificationToggle}
       />
       </Animated.View>
     </GestureHandlerRootView>

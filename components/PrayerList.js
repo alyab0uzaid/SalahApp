@@ -5,25 +5,12 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress }) => {
-  // State to track which prayers have notifications enabled
-  const [notifications, setNotifications] = useState(
-    prayerNames.reduce((acc, name) => ({ ...acc, [name]: false }), {})
-  );
-
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress, notifications = {} }) => {
   // Local state to track prayer status for immediate UI updates
   const [localPrayerStatus, setLocalPrayerStatus] = useState({});
-  
+
   // Track which prayer is currently being pressed (for immediate tap feedback)
   const [pressedPrayer, setPressedPrayer] = useState(null);
-
-  const handleBellPress = (prayerName) => {
-    const newState = !notifications[prayerName];
-    setNotifications(prev => ({ ...prev, [prayerName]: newState }));
-    if (onNotificationToggle) {
-      onNotificationToggle(prayerName, newState);
-    }
-  };
 
 
   // Right swipe action - "On Time" (green background with opacity based on swipe progress)
@@ -295,20 +282,13 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
                 ]}>
                   {time}
                 </Text>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    handleBellPress(name);
-                  }}
-                  style={styles.bellButton}
-                  activeOpacity={0.6}
-                >
+                <View style={styles.bellIcon}>
                   <MaterialCommunityIcons
-                    name={hasNotification ? 'bell' : 'bell-outline'}
-                    size={22}
-                    color={hasNotification ? COLORS.text.primary : COLORS.text.tertiary}
+                    name={hasNotification ? 'bell' : 'bell-off-outline'}
+                    size={18}
+                    color={COLORS.text.tertiary}
                   />
-                </TouchableOpacity>
+                </View>
               </View>
             </View>
           </Pressable>
@@ -444,11 +424,8 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     fontFamily: FONTS.weights.medium.primary,
   },
-  bellButton: {
-    paddingVertical: SPACING.xs,
-    paddingLeft: SPACING.sm,
-    paddingRight: 0,
-    marginLeft: SPACING.sm,
+  bellIcon: {
+    marginLeft: SPACING.md,
   },
   // Swipe action styles - icons positioned near edges
   rightAction: {
