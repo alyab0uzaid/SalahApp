@@ -5,7 +5,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate, onPrayerStatusUpdate, prayerStatus }) => {
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onNotificationToggle, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress }) => {
   // State to track which prayers have notifications enabled
   const [notifications, setNotifications] = useState(
     prayerNames.reduce((acc, name) => ({ ...acc, [name]: false }), {})
@@ -241,7 +241,15 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
         const isSunrise = name.toLowerCase() === 'sunrise';
 
         const prayerRowContent = (
-          <View style={styles.prayerRow}>
+          <TouchableOpacity
+            style={styles.prayerRow}
+            activeOpacity={0.7}
+            onPress={() => {
+              if (onPrayerPress && !isSunrise) {
+                onPrayerPress({ name, time, index });
+              }
+            }}
+          >
             <View style={styles.prayerRowContent}>
               <View style={styles.prayerInfo}>
                 <MaterialCommunityIcons
@@ -272,7 +280,10 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
                   {time}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => handleBellPress(name)}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    handleBellPress(name);
+                  }}
                   style={styles.bellButton}
                   activeOpacity={0.6}
                 >
@@ -284,7 +295,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         );
 
         // Sunrise is not a prayer, so it shouldn't be swipeable

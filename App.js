@@ -13,6 +13,7 @@ import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import DatePicker from './components/DatePicker';
 import QiblaCompass from './components/QiblaCompass';
+import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
@@ -59,6 +60,10 @@ export default function App() {
   // Cache today's prayer times to avoid recalculation when switching back
   const todayPrayerTimesRef = useRef(null);
   const archTimerRef = useRef(null);
+  const bottomSheetRef = useRef(null);
+
+  // State for selected prayer in bottom sheet
+  const [selectedPrayer, setSelectedPrayer] = useState(null);
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
@@ -222,6 +227,12 @@ export default function App() {
       duration: 300,
       useNativeDriver: false,
     }).start();
+  };
+
+  // Handle prayer row press - open bottom sheet
+  const handlePrayerPress = (prayer) => {
+    setSelectedPrayer(prayer);
+    bottomSheetRef.current?.snapToIndex(0);
   };
 
   // Handle prayer status update (on-time or late, or null to remove)
@@ -393,15 +404,16 @@ export default function App() {
           selectedDate={selectedDate}
           onPrayerStatusUpdate={handlePrayerStatusUpdate}
           prayerStatus={prayerStatus}
+          onPrayerPress={handlePrayerPress}
         />
       </ScrollView>
 
       <View style={[
         styles.bottomNavWrapper,
-        (activeTab === 'qibla' || activeTab === 'tracker' || activeTab === 'settings') && { 
-          position: 'absolute', 
-          bottom: 0, 
-          left: 0, 
+        (activeTab === 'qibla' || activeTab === 'tracker' || activeTab === 'settings') && {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
           right: 0,
           backgroundColor: activeTab === 'qibla' ? 'transparent' : COLORS.background.primary,
         }
@@ -411,6 +423,12 @@ export default function App() {
           onTabPress={handleTabChange}
         />
       </View>
+
+      {/* Prayer Details Bottom Sheet */}
+      <PrayerDetailsBottomSheet
+        bottomSheetRef={bottomSheetRef}
+        selectedPrayer={selectedPrayer}
+      />
       </Animated.View>
     </GestureHandlerRootView>
   );
