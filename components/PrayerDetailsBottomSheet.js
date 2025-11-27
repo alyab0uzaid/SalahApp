@@ -1,11 +1,22 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import BottomSheet, { BottomSheetView } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
 const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer }) => {
-  // Snap points for the bottom sheet
-  const snapPoints = useMemo(() => ['40%'], []);
+  // Snap points for the bottom sheet - 75% of screen height
+  const snapPoints = useMemo(() => ['75%'], []);
+
+  // Backdrop component - renders a semi-transparent overlay
+  const renderBackdrop = (props) => (
+    <BottomSheetBackdrop
+      {...props}
+      disappearsOnIndex={-1}
+      appearsOnIndex={0}
+      opacity={0.5}
+      pressBehavior="close"
+    />
+  );
 
   if (!selectedPrayer) return null;
 
@@ -17,6 +28,8 @@ const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer }) => {
       enablePanDownToClose={true}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
+      backdropComponent={renderBackdrop}
+      enableDynamicSizing={false}
     >
       <BottomSheetView style={styles.contentContainer}>
         <Text style={styles.prayerTitle}>{selectedPrayer.name}</Text>
