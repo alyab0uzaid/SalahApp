@@ -18,8 +18,21 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
 
   const isCurrentDateToday = isToday();
 
+  // Check if selected date is in the past
+  const isPastDate = () => {
+    if (!selectedDate) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(selectedDate);
+    selected.setHours(0, 0, 0, 0);
+    return selected < today;
+  };
+
+  const isCurrentDatePast = isPastDate();
+
   // Convert current time to minutes
-  const rawCurrentMinutes = timeToMinutes(currentTime);
+  // For past dates, use 11:59 PM to show completed state
+  const rawCurrentMinutes = isCurrentDatePast ? (23 * 60 + 59) : timeToMinutes(currentTime);
 
   // Timer state and logic
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
@@ -240,9 +253,12 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
 
   const { rawCurrentPosition, clampedCurrentPosition, showCircle, currentPoint, currentT } = archCalculations;
   const shouldShowCircle = isCurrentDateToday && showCircle;
-  
+
   // Memoize the gradient path
   const gradientPath = useMemo(() => currentT > 0 ? generateArchPath(currentT) : '', [currentT, width, height]);
+
+  // Should show gradient for today or past dates
+  const shouldShowGradient = isCurrentDateToday || isCurrentDatePast;
 
   return (
     <View style={[styles.container, style]}>
@@ -310,7 +326,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           strokeLinecap="round"
         />
         
-        {/* Gradient line up to current time - always render, control with opacity */}
+        {/* Gradient line up to current time - show for today and past dates */}
         {gradientPath && (
           <Path
             d={gradientPath}
@@ -318,82 +334,80 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
             stroke="url(#progressGradient)"
             strokeWidth="5"
             strokeLinecap="round"
-            opacity={isCurrentDateToday ? 1 : 0}
-            pointerEvents={isCurrentDateToday ? 'auto' : 'none'}
+            opacity={shouldShowGradient ? 1 : 0}
+            pointerEvents={shouldShowGradient ? 'auto' : 'none'}
           />
         )}
         
-        {/* Past prayer time dots - always render, control with opacity */}
+        {/* Past prayer time dots - show for today and past dates */}
         {prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
-          
+
           let isPast = false;
           if (rawCurrentMinutes >= minTime) {
             isPast = rawCurrentMinutes >= minutes;
           }
-          
+
           if (!isPast) return null;
-          
+
           // Hide if too close to current indicator
           if (showCircle && Math.abs(position - clampedCurrentPosition) < 0.002) {
             return null;
           }
-          
+
           // Fade in opacity
           const fadeWindowMinutes = 3;
           const minutesAfterPrayer = rawCurrentMinutes - minutes;
           let opacity = 1;
-          
+
           if (minutesAfterPrayer >= 0 && minutesAfterPrayer <= fadeWindowMinutes) {
             opacity = Math.min(1, minutesAfterPrayer / fadeWindowMinutes);
           }
-          
+
           return (
-            <G key={`past-${index}`} opacity={isCurrentDateToday ? opacity : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
+            <G key={`past-${index}`} opacity={shouldShowGradient ? opacity : 0} pointerEvents={shouldShowGradient ? 'auto' : 'none'}>
               <Circle
                 cx={point.x}
                 cy={point.y}
                 r={9}
                 fill="rgba(255, 255, 255, 0.5)"
-                stroke="rgba(255, 255, 255, 0.25)"
-                strokeWidth="1"
               />
             </G>
           );
         })}
 
-        {/* Future prayer time dots */}
-        {prayerTimes.map((time, index) => {
+        {/* Future prayer time dots - only show for today and future dates, not past dates */}
+        {!isCurrentDatePast && prayerTimes.map((time, index) => {
           const minutes = timeToMinutes(time);
           const position = getDotPosition(minutes);
           const point = getPointOnArch(position);
-          
+
           // When not today, show all dots as future (no fade logic)
           let isPast = false;
           let opacity = 1;
-          
+
           if (isCurrentDateToday) {
             if (rawCurrentMinutes >= minTime) {
               isPast = rawCurrentMinutes >= minutes;
             }
-            
+
             if (isPast) return null;
-            
+
             // Fade out opacity only when viewing today
             const fadeWindowMinutes = 3;
             const minutesUntilPrayer = minutes - rawCurrentMinutes;
-            
+
             if (minutesUntilPrayer <= fadeWindowMinutes && minutesUntilPrayer > 0) {
               opacity = minutesUntilPrayer / fadeWindowMinutes;
             } else if (minutesUntilPrayer <= 0) {
               opacity = 0;
             }
           }
-          
+
           return (
-            <G key={`future-${index}`} opacity={isCurrentDateToday ? opacity : 1} pointerEvents="auto">
+            <G key={`future-${index}`} opacity={opacity} pointerEvents="auto">
               <Circle
                 cx={point.x}
                 cy={point.y}
