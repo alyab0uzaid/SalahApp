@@ -232,7 +232,10 @@ export default function App() {
   // Handle prayer row press - open bottom sheet
   const handlePrayerPress = (prayer) => {
     setSelectedPrayer(prayer);
-    bottomSheetRef.current?.snapToIndex(0);
+    // Subtle delay before opening bottom sheet
+    setTimeout(() => {
+      bottomSheetRef.current?.snapToIndex(0);
+    }, 200);
   };
 
   // Handle prayer status update (on-time or late, or null to remove)

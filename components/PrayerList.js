@@ -1,5 +1,5 @@
 import React, { useState, memo, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Animated } from 'react-native';
+import { StyleSheet, Text, View, TouchableOpacity, Animated, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
@@ -13,6 +13,9 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
 
   // Local state to track prayer status for immediate UI updates
   const [localPrayerStatus, setLocalPrayerStatus] = useState({});
+  
+  // Track which prayer is currently being pressed (for immediate tap feedback)
+  const [pressedPrayer, setPressedPrayer] = useState(null);
 
   const handleBellPress = (prayerName) => {
     const newState = !notifications[prayerName];
@@ -110,6 +113,9 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
   
   // Track swipe state to detect when user releases
   const swipeStateRef = useRef({});
+  
+  // Track if a swipe is currently happening (to prevent tap feedback during swipes)
+  const isSwipingRef = useRef({});
 
   // Sync local state with parent state when date changes or parent state updates
   useEffect(() => {
@@ -241,10 +247,20 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
         const isSunrise = name.toLowerCase() === 'sunrise';
 
         const prayerRowContent = (
-          <TouchableOpacity
-            style={styles.prayerRow}
-            activeOpacity={0.7}
+          <Pressable
+            style={[
+              styles.prayerRow,
+              pressedPrayer === name && !isSwipingRef.current[name] && styles.prayerRowPressed
+            ]}
             onPress={() => {
+              if (!isSwipingRef.current[name]) {
+                // Show color change on release
+                setPressedPrayer(name);
+                // Clear it after a brief moment
+                setTimeout(() => {
+                  setPressedPrayer(null);
+                }, 150);
+              }
               if (onPrayerPress && !isSunrise) {
                 onPrayerPress({ name, time, index });
               }
@@ -295,7 +311,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableOpacity>
+          </Pressable>
         );
 
         // Sunrise is not a prayer, so it shouldn't be swipeable
@@ -319,6 +335,8 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
             renderRightActions={createRightActionsRenderer(name)}
             renderLeftActions={createLeftActionsRenderer(name)}
             onSwipeableWillOpen={(direction) => {
+              // Mark that we're swiping to prevent tap feedback
+              isSwipingRef.current[name] = true;
               // Track direction when threshold is reached
               if (!swipeStateRef.current[name]) {
                 swipeStateRef.current[name] = {};
@@ -327,6 +345,8 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, onN
               swipeStateRef.current[name].hasSwiped = true;
             }}
             onSwipeableClose={(direction) => {
+              // Mark that we're no longer swiping
+              isSwipingRef.current[name] = false;
               // When user releases, mark the prayer using the direction
               // Use tracked direction if available, otherwise use close direction
               const swipeState = swipeStateRef.current[name];
@@ -379,6 +399,9 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.md, // Prayer row has rounded corners
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+  },
+  prayerRowPressed: {
+    backgroundColor: '#0F0E10', // Darker than secondary, no blue tint
   },
   prayerRowContent: {
     flexDirection: 'row',
