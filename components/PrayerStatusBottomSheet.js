@@ -37,7 +37,8 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
   
   // Different colors for marking vs removing
   const baseConfirmColor = sheetData.direction === 'right' ? '#81C784' : '#FF9A76';
-  const confirmColor = sheetData.isRemoving ? '#9E9E9E' : baseConfirmColor; // Grey for removing
+  // Use a brighter, lighter grey for removing (clearly different from white cancel)
+  const confirmColor = sheetData.isRemoving ? '#C0C0C0' : baseConfirmColor;
   
   // Convert hex to rgba for opacity and darken
   const hexToRgba = (hex, alpha) => {
