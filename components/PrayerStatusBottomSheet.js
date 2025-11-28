@@ -1,16 +1,40 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 
-const PrayerStatusBottomSheet = ({ bottomSheetRef, prayerName, prayerTime, direction, isRemoving, onConfirm, onCancel }) => {
+const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
   const snapPoints = useMemo(() => ['30%'], []);
+  const bottomSheetRef = React.useRef(null);
+
+  // Internal state for sheet data
+  const [sheetData, setSheetData] = useState({
+    prayerName: '',
+    prayerTime: '',
+    direction: 'right',
+    isRemoving: false
+  });
+
+  // Expose methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    open: (data) => {
+      // Use callback form to ensure data is set synchronously
+      setSheetData(data);
+      // Small delay to ensure state update completes before animation
+      requestAnimationFrame(() => {
+        bottomSheetRef.current?.snapToIndex(0);
+      });
+    },
+    close: () => {
+      bottomSheetRef.current?.close();
+    }
+  }));
 
   // Determine question and confirm button color based on direction and if removing
-  const question = isRemoving
-    ? (direction === 'right' ? 'REMOVE ON TIME?' : 'REMOVE LATE?')
-    : (direction === 'right' ? 'MARK ON TIME?' : 'MARK LATE?');
-  const confirmColor = direction === 'right' ? '#81C784' : '#FF9A76';
+  const question = sheetData.isRemoving
+    ? (sheetData.direction === 'right' ? 'REMOVE ON TIME?' : 'REMOVE LATE?')
+    : (sheetData.direction === 'right' ? 'MARK ON TIME?' : 'MARK LATE?');
+  const confirmColor = sheetData.direction === 'right' ? '#81C784' : '#FF9A76';
 
   const renderBackdrop = (props) => (
     <BottomSheetBackdrop
@@ -37,7 +61,7 @@ const PrayerStatusBottomSheet = ({ bottomSheetRef, prayerName, prayerTime, direc
       <BottomSheetView style={styles.contentContainer}>
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>{question}</Text>
-          <Text style={styles.prayerNameText}>{prayerName?.toUpperCase()}</Text>
+          <Text style={styles.prayerNameText}>{sheetData.prayerName?.toUpperCase()}</Text>
         </View>
 
         <View style={styles.buttonsContainer}>
@@ -66,7 +90,7 @@ const PrayerStatusBottomSheet = ({ bottomSheetRef, prayerName, prayerTime, direc
       </BottomSheetView>
     </BottomSheet>
   );
-};
+});
 
 const styles = StyleSheet.create({
   bottomSheetBackground: {
@@ -88,10 +112,10 @@ const styles = StyleSheet.create({
   questionContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   questionText: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: FONTS.weights.bold.primary,
     color: COLORS.text.primary,
     letterSpacing: 0.5,
@@ -112,11 +136,11 @@ const styles = StyleSheet.create({
   },
   button: {
     flex: 1,
-    paddingVertical: SPACING.md + 4,
+    paddingVertical: SPACING.sm + 4,
     borderRadius: RADIUS.md,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 50,
+    minHeight: 44,
   },
   cancelButton: {
     backgroundColor: COLORS.background.tertiary,

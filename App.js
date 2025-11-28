@@ -331,11 +331,11 @@ export default function App() {
     // If current status matches swipe direction, we're removing it
     const isRemoving = currentStatus === swipeStatus;
 
-    // Set pending swipe data FIRST so content is ready
+    // Store pending swipe for confirmation handler
     setPendingSwipe({ prayerName, prayerTime, direction, isRemoving });
 
-    // Then open sheet immediately
-    prayerStatusBottomSheetRef.current?.snapToIndex(0);
+    // Open sheet with data via imperative API
+    prayerStatusBottomSheetRef.current?.open({ prayerName, prayerTime, direction, isRemoving });
   };
 
   // Handle confirm - mark prayer status or remove it
@@ -546,11 +546,7 @@ export default function App() {
 
       {/* Prayer Status Confirmation Bottom Sheet */}
       <PrayerStatusBottomSheet
-        bottomSheetRef={prayerStatusBottomSheetRef}
-        prayerName={pendingSwipe?.prayerName}
-        prayerTime={pendingSwipe?.prayerTime}
-        direction={pendingSwipe?.direction}
-        isRemoving={pendingSwipe?.isRemoving}
+        ref={prayerStatusBottomSheetRef}
         onConfirm={handleStatusConfirm}
         onCancel={handleStatusCancel}
       />
