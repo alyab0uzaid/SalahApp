@@ -37,6 +37,9 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   // Timer state and logic
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [nextPrayer, setNextPrayer] = useState({ name: '', time: '' });
+  
+  // Ref to track if we're viewing today (to avoid stale closure in interval)
+  const isTodayRef = useRef(isCurrentDateToday);
 
   // Animated values for smooth transitions
   const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
@@ -99,9 +102,22 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     }
   }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity]);
 
-  // Calculate next prayer and countdown - always update for today's timer
+  // Calculate next prayer and countdown - only update when viewing today
   useEffect(() => {
+    // Update ref immediately to prevent any interval callbacks from running
+    isTodayRef.current = isCurrentDateToday;
+    
+    // If not viewing today, stop updates but keep the last countdown value (frozen)
+    if (!isCurrentDateToday) {
+      return;
+    }
+
     const updateTimer = () => {
+      // Only update if still viewing today (use ref to avoid stale closure)
+      if (!isTodayRef.current) {
+        return;
+      }
+
       const now = new Date();
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const currentSeconds = now.getSeconds();
@@ -145,11 +161,11 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     // Update immediately - this ensures timer is ready right away
     updateTimer();
 
-    // Always update timer every second (even when not viewing today, it will just be hidden)
+    // Only update timer every second when viewing today
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [prayerTimes, prayerNames]);
+  }, [prayerTimes, prayerNames, isCurrentDateToday]);
 
   // Get all prayer times in minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
