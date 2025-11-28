@@ -4,7 +4,7 @@ import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/botto
 import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 
 const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
-  const snapPoints = useMemo(() => ['30%'], []);
+  const snapPoints = useMemo(() => ['22%'], []);
   const bottomSheetRef = React.useRef(null);
 
   // Internal state for sheet data
@@ -35,6 +35,19 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
     ? (sheetData.direction === 'right' ? 'REMOVE ON TIME?' : 'REMOVE LATE?')
     : (sheetData.direction === 'right' ? 'MARK ON TIME?' : 'MARK LATE?');
   const confirmColor = sheetData.direction === 'right' ? '#81C784' : '#FF9A76';
+  
+  // Convert hex to rgba for opacity
+  const hexToRgba = (hex, alpha) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+  const confirmColorWithOpacity = hexToRgba(confirmColor, 0.2);
+  
+  // Grey/white colors for cancel button
+  const cancelBorderColor = 'rgba(255, 255, 255, 0.3)';
+  const cancelBgColor = 'rgba(255, 255, 255, 0.1)';
 
   const renderBackdrop = (props) => (
     <BottomSheetBackdrop
@@ -68,7 +81,11 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
           <Pressable
             style={({ pressed }) => [
               styles.button,
-              styles.cancelButton,
+              {
+                borderColor: cancelBorderColor,
+                borderWidth: 1,
+                backgroundColor: cancelBgColor,
+              },
               pressed && { opacity: 0.7 }
             ]}
             onPress={onCancel}
@@ -79,7 +96,11 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
           <Pressable
             style={({ pressed }) => [
               styles.button,
-              { backgroundColor: confirmColor },
+              {
+                borderColor: confirmColor,
+                borderWidth: 1,
+                backgroundColor: confirmColorWithOpacity,
+              },
               pressed && { opacity: 0.7 }
             ]}
             onPress={onConfirm}
@@ -106,8 +127,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.lg,
-    paddingTop: SPACING.xl,
-    paddingBottom: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xs,
   },
   questionContainer: {
     flex: 1,
@@ -115,7 +136,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   questionText: {
-    fontSize: 20,
+    fontSize: 18,
     fontFamily: FONTS.weights.bold.primary,
     color: COLORS.text.primary,
     letterSpacing: 0.5,
@@ -125,14 +146,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: FONTS.weights.regular.primary,
     color: COLORS.text.secondary,
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
   buttonsContainer: {
     flexDirection: 'row',
     gap: SPACING.md,
-    marginTop: SPACING.lg,
+    marginTop: SPACING.md,
   },
   button: {
     flex: 1,
@@ -142,20 +163,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 44,
   },
-  cancelButton: {
-    backgroundColor: COLORS.background.tertiary,
-    borderWidth: 1,
-    borderColor: COLORS.border.primary,
-  },
   cancelText: {
     fontSize: 16,
     fontFamily: FONTS.weights.medium.primary,
-    color: COLORS.text.primary,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
   confirmText: {
     fontSize: 16,
     fontFamily: FONTS.weights.medium.primary,
-    color: COLORS.text.primary,
+    color: 'rgba(255, 255, 255, 0.8)',
   },
 });
 
