@@ -15,6 +15,7 @@ import DatePicker from './components/DatePicker';
 import QiblaCompass from './components/QiblaCompass';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
+import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
@@ -72,9 +73,13 @@ export default function App() {
   const archTimerRef = useRef(null);
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
+  const prayerStatusBottomSheetRef = useRef(null);
 
   // State for selected prayer in bottom sheet
   const [selectedPrayer, setSelectedPrayer] = useState(null);
+  
+  // State for prayer status confirmation - just store the pending swipe data
+  const [pendingSwipe, setPendingSwipe] = useState(null);
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
@@ -316,6 +321,49 @@ export default function App() {
     });
   };
 
+  // Handle swipe to open confirmation bottom sheet
+  const handleSwipeToConfirm = (prayerName, prayerTime, direction) => {
+    // Check current status to determine if we're marking or removing
+    const dateKey = selectedDate.toISOString().split('T')[0];
+    const currentStatus = prayerStatus[dateKey]?.[prayerName] || null;
+    const swipeStatus = direction === 'right' ? 'on-time' : 'late';
+
+    // If current status matches swipe direction, we're removing it
+    const isRemoving = currentStatus === swipeStatus;
+
+    setPendingSwipe({ prayerName, prayerTime, direction, isRemoving });
+    prayerStatusBottomSheetRef.current?.snapToIndex(0);
+  };
+
+  // Handle confirm - mark prayer status or remove it
+  const handleStatusConfirm = () => {
+    // Close sheet first to avoid flash
+    prayerStatusBottomSheetRef.current?.close();
+
+    // Update status after a tiny delay to let sheet start closing
+    setTimeout(() => {
+      if (pendingSwipe?.prayerName && pendingSwipe?.direction) {
+        if (pendingSwipe.isRemoving) {
+          // Remove the status
+          handlePrayerStatusUpdate(pendingSwipe.prayerName, null);
+        } else {
+          // Set the status
+          const status = pendingSwipe.direction === 'right' ? 'on-time' : 'late';
+          handlePrayerStatusUpdate(pendingSwipe.prayerName, status);
+        }
+      }
+      setPendingSwipe(null);
+    }, 50);
+  };
+
+  // Handle cancel - close sheet without changes
+  const handleStatusCancel = () => {
+    prayerStatusBottomSheetRef.current?.close();
+    setTimeout(() => {
+      setPendingSwipe(null);
+    }, 50);
+  };
+
   // Interpolate background color
   const backgroundColor = qiblaBgOpacity.interpolate({
     inputRange: [0, 1],
@@ -457,6 +505,7 @@ export default function App() {
           prayerStatus={prayerStatus}
           onPrayerPress={handlePrayerPress}
           notifications={notifications}
+          onSwipeToConfirm={handleSwipeToConfirm}
         />
       </ScrollView>
 
@@ -490,6 +539,17 @@ export default function App() {
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
         prayerStatus={prayerStatus}
+      />
+
+      {/* Prayer Status Confirmation Bottom Sheet */}
+      <PrayerStatusBottomSheet
+        bottomSheetRef={prayerStatusBottomSheetRef}
+        prayerName={pendingSwipe?.prayerName}
+        prayerTime={pendingSwipe?.prayerTime}
+        direction={pendingSwipe?.direction}
+        isRemoving={pendingSwipe?.isRemoving}
+        onConfirm={handleStatusConfirm}
+        onCancel={handleStatusCancel}
       />
       </Animated.View>
     </GestureHandlerRootView>

@@ -5,7 +5,7 @@ import { Swipeable } from 'react-native-gesture-handler';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress, notifications = {} }) => {
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress, notifications = {}, onSwipeToConfirm }) => {
   // Local state to track prayer status for immediate UI updates
   const [localPrayerStatus, setLocalPrayerStatus] = useState({});
 
@@ -16,8 +16,8 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
   // Right swipe action - "On Time" (green background with opacity based on swipe progress)
   const renderRightActions = (progress) => {
     const opacity = progress.interpolate({
-      inputRange: [0, 0.3, 1],
-      outputRange: [0.2, 1, 1], // Reach full opacity at 30% swipe
+      inputRange: [0, 0.15, 1],
+      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
     });
 
     return (
@@ -30,8 +30,8 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
   // Left swipe action - "Late" (orange background with opacity based on swipe progress)
   const renderLeftActions = (progress) => {
     const opacity = progress.interpolate({
-      inputRange: [0, 0.3, 1],
-      outputRange: [0.2, 1, 1], // Reach full opacity at 30% swipe
+      inputRange: [0, 0.15, 1],
+      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
     });
 
     return (
@@ -103,70 +103,28 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
   
   // Track if a swipe is currently happening (to prevent tap feedback during swipes)
   const isSwipingRef = useRef({});
-
+  
   // Sync local state with parent state when date changes or parent state updates
   useEffect(() => {
     if (!selectedDate) return;
     const dateKey = selectedDate.toISOString().split('T')[0];
-    if (dateKey && prayerStatus && prayerStatus[dateKey]) {
-      // Update local state with parent state for the current date
-      setLocalPrayerStatus(prev => ({
-        ...prev,
-        [dateKey]: prayerStatus[dateKey],
-      }));
-    }
+
+    // Always sync with parent state - either update or clear
+    setLocalPrayerStatus(prev => ({
+      ...prev,
+      [dateKey]: prayerStatus?.[dateKey] || {},
+    }));
   }, [selectedDate, prayerStatus]);
 
-  // Handle swipe completion - use ref to prevent multiple calls
-  const handleSwipeComplete = (prayerName, direction, swipeableRef) => {
-    if (!onPrayerStatusUpdate) return;
-    
-    // Prevent duplicate calls for the same prayer
-    const dateKey = getDateKey();
-    const stateKey = `${dateKey}-${prayerName}`;
-    if (swipeStateRef.current[`_processed_${stateKey}`]) {
-      return; // Already processed
+  // Handle swipe completion - open confirmation bottom sheet
+  const handleSwipeComplete = (prayerName, direction) => {
+    // Find the prayer time
+    const prayerIndex = prayerNames.indexOf(prayerName);
+    const prayerTime = prayerIndex >= 0 ? prayerTimes[prayerIndex] : '';
+
+    if (onSwipeToConfirm) {
+      onSwipeToConfirm(prayerName, prayerTime, direction);
     }
-    swipeStateRef.current[`_processed_${stateKey}`] = true;
-    
-    // direction: 'right' = on-time (green), 'left' = late (orange)
-    const newStatus = direction === 'right' ? 'on-time' : 'late';
-    
-    // Check current status to toggle
-    const currentStatus = getPrayerStatusForDate(prayerName);
-    const status = currentStatus === newStatus ? null : newStatus; // Toggle: if same, remove; otherwise set
-    
-    // Update local state immediately for instant UI feedback
-    if (dateKey) {
-      setLocalPrayerStatus(prev => {
-        const newState = {
-          ...prev,
-          [dateKey]: {
-            ...(prev[dateKey] || {}),
-            [prayerName]: status,
-          },
-        };
-        // Remove the key if status is null
-        if (status === null && newState[dateKey][prayerName] === null) {
-          const { [prayerName]: _, ...rest } = newState[dateKey];
-          newState[dateKey] = rest;
-        }
-        return newState;
-      });
-    }
-    
-    // Update parent state
-    onPrayerStatusUpdate(prayerName, status);
-    
-    // Close the swipeable after marking
-    if (swipeableRef) {
-      swipeableRef.close();
-    }
-    
-    // Clear processed flag after a delay
-    setTimeout(() => {
-      delete swipeStateRef.current[`_processed_${stateKey}`];
-    }, 500);
   };
 
   // Determine which prayer is current and which are past (only if viewing today)
@@ -318,27 +276,27 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
               // Mark that we're swiping to prevent tap feedback
               isSwipingRef.current[name] = true;
               // Track direction when threshold is reached
-              if (!swipeStateRef.current[name]) {
-                swipeStateRef.current[name] = {};
-              }
-              swipeStateRef.current[name].direction = direction;
-              swipeStateRef.current[name].hasSwiped = true;
+              swipeStateRef.current[name] = {
+                direction: direction,
+                hasSwiped: true
+              };
             }}
             onSwipeableClose={(direction) => {
               // Mark that we're no longer swiping
               isSwipingRef.current[name] = false;
-              // When user releases, mark the prayer using the direction
-              // Use tracked direction if available, otherwise use close direction
+
+              // Get the direction from tracked state (more reliable than close direction)
               const swipeState = swipeStateRef.current[name];
               const finalDirection = (swipeState && swipeState.direction) || direction;
-              
-              if (finalDirection) {
-                const swipeableRef = swipeableRefs.current[name];
-                handleSwipeComplete(name, finalDirection, swipeableRef);
-              }
+
               // Clear state
               if (swipeStateRef.current[name]) {
                 delete swipeStateRef.current[name];
+              }
+
+              // Only handle if we have a valid direction
+              if (finalDirection) {
+                handleSwipeComplete(name, finalDirection);
               }
             }}
             overshootRight={false}
