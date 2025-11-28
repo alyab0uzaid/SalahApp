@@ -14,6 +14,7 @@ import BottomNav from './components/BottomNav';
 import DatePicker from './components/DatePicker';
 import QiblaCompass from './components/QiblaCompass';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
+import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
@@ -70,6 +71,7 @@ export default function App() {
   const todayPrayerTimesRef = useRef(null);
   const archTimerRef = useRef(null);
   const bottomSheetRef = useRef(null);
+  const datePickerBottomSheetRef = useRef(null);
 
   // State for selected prayer in bottom sheet
   const [selectedPrayer, setSelectedPrayer] = useState(null);
@@ -257,6 +259,32 @@ export default function App() {
     }
   };
 
+  // Handle date picker press - open bottom sheet
+  const handleDatePickerPress = () => {
+    datePickerBottomSheetRef.current?.snapToIndex(0);
+  };
+
+  // Handle date selection from calendar
+  const handleDateSelect = (newDate) => {
+    const today = new Date();
+    const isNewDateToday = newDate.getDate() === today.getDate() &&
+      newDate.getMonth() === today.getMonth() &&
+      newDate.getFullYear() === today.getFullYear();
+
+    // If switching to today, trigger immediate animation like the "Today" button
+    if (isNewDateToday) {
+      // Start animation immediately, before state update
+      if (archTimerRef.current) {
+        archTimerRef.current.animateToToday();
+      }
+      // Use cached prayer times immediately if available
+      if (todayPrayerTimesRef.current) {
+        setPrayerTimes(todayPrayerTimesRef.current);
+      }
+    }
+    setSelectedDate(newDate);
+  };
+
   // Handle prayer status update (on-time or late, or null to remove)
   const handlePrayerStatusUpdate = (prayerName, status) => {
     // Create a date key (YYYY-MM-DD format)
@@ -415,6 +443,7 @@ export default function App() {
             }
             setSelectedDate(newDate);
           }}
+          onDatePress={handleDatePickerPress}
           style={styles.datePicker}
         />
         <PrayerList
@@ -453,6 +482,14 @@ export default function App() {
         selectedPrayer={selectedPrayer}
         notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
         onNotificationToggle={handleNotificationToggle}
+      />
+
+      {/* Date Picker Bottom Sheet */}
+      <DatePickerBottomSheet
+        bottomSheetRef={datePickerBottomSheetRef}
+        selectedDate={selectedDate}
+        onDateSelect={handleDateSelect}
+        prayerStatus={prayerStatus}
       />
       </Animated.View>
     </GestureHandlerRootView>

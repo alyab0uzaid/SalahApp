@@ -4,7 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import 'hijri-date';
 
-const DatePickerComponent = ({ selectedDate, onDateChange, style }) => {
+const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress }) => {
   const formatDate = (date) => {
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     return date.toLocaleDateString('en-US', options);
@@ -68,12 +68,16 @@ const DatePickerComponent = ({ selectedDate, onDateChange, style }) => {
         />
       </TouchableOpacity>
 
-      <View style={styles.dateContainer}>
+      <TouchableOpacity
+        onPress={onDatePress}
+        style={styles.dateContainer}
+        activeOpacity={0.6}
+      >
         <Text style={styles.gregorianDate}>{formattedDate}</Text>
         {hijriDate && (
           <Text style={styles.hijriDate}>{hijriDate}</Text>
         )}
-      </View>
+      </TouchableOpacity>
 
       <TouchableOpacity
         onPress={handleNextDay}
