@@ -13,46 +13,6 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
   const [pressedPrayer, setPressedPrayer] = useState(null);
 
 
-  // Right swipe action - "On Time" (green background with opacity based on swipe progress)
-  const renderRightActions = (progress) => {
-    const opacity = progress.interpolate({
-      inputRange: [0, 0.15, 1],
-      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
-    });
-
-    return (
-      <Animated.View style={[styles.rightAction, { opacity }]}>
-        <MaterialCommunityIcons name="check-circle" size={24} color="#fff" />
-      </Animated.View>
-    );
-  };
-
-  // Left swipe action - "Late" (orange background with opacity based on swipe progress)
-  const renderLeftActions = (progress) => {
-    const opacity = progress.interpolate({
-      inputRange: [0, 0.15, 1],
-      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
-    });
-
-    return (
-      <Animated.View style={[styles.leftAction, { opacity }]}>
-        <MaterialCommunityIcons name="clock-alert" size={24} color="#fff" />
-      </Animated.View>
-    );
-  };
-  
-  // Create wrapper functions - just pass through, we'll detect direction on close
-  const createRightActionsRenderer = (prayerName) => {
-    return (progress, dragX) => {
-      return renderRightActions(progress);
-    };
-  };
-  
-  const createLeftActionsRenderer = (prayerName) => {
-    return (progress, dragX) => {
-      return renderLeftActions(progress);
-    };
-  };
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
   
@@ -93,6 +53,57 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
     }
     
     return null;
+  };
+
+  // Right swipe action - "On Time" or "Remove" (green/grey background with opacity based on swipe progress)
+  const renderRightActions = (progress, prayerName) => {
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.15, 1],
+      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
+    });
+
+    const currentStatus = getPrayerStatusForDate(prayerName);
+    const isRemoving = currentStatus === 'on-time';
+    const backgroundColor = isRemoving ? '#C0C0C0' : '#81C784';
+    const iconName = isRemoving ? 'close-circle' : 'check-circle';
+
+    return (
+      <Animated.View style={[styles.rightAction, { opacity, backgroundColor }]}>
+        <MaterialCommunityIcons name={iconName} size={24} color="#fff" />
+      </Animated.View>
+    );
+  };
+
+  // Left swipe action - "Late" or "Remove" (orange/grey background with opacity based on swipe progress)
+  const renderLeftActions = (progress, prayerName) => {
+    const opacity = progress.interpolate({
+      inputRange: [0, 0.15, 1],
+      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
+    });
+
+    const currentStatus = getPrayerStatusForDate(prayerName);
+    const isRemoving = currentStatus === 'late';
+    const backgroundColor = isRemoving ? '#C0C0C0' : '#FF9A76';
+    const iconName = isRemoving ? 'close-circle' : 'clock-alert';
+
+    return (
+      <Animated.View style={[styles.leftAction, { opacity, backgroundColor }]}>
+        <MaterialCommunityIcons name={iconName} size={24} color="#fff" />
+      </Animated.View>
+    );
+  };
+  
+  // Create wrapper functions - pass prayer name to render functions
+  const createRightActionsRenderer = (prayerName) => {
+    return (progress, dragX) => {
+      return renderRightActions(progress, prayerName);
+    };
+  };
+  
+  const createLeftActionsRenderer = (prayerName) => {
+    return (progress, dragX) => {
+      return renderLeftActions(progress, prayerName);
+    };
   };
 
   // Refs to control swipeable components
@@ -387,14 +398,14 @@ const styles = StyleSheet.create({
   },
   // Swipe action styles - icons positioned near edges
   rightAction: {
-    backgroundColor: '#81C784', // Muted green for "on time"
+    // backgroundColor is set dynamically based on remove/add state
     justifyContent: 'center',
     alignItems: 'flex-end', // Align to right edge
     paddingRight: 16, // 16px from edge
     flex: 1, // Take full available width
   },
   leftAction: {
-    backgroundColor: '#FF9A76', // More orange-leaning coral for "late"
+    // backgroundColor is set dynamically based on remove/add state
     justifyContent: 'center',
     alignItems: 'flex-start', // Align to left edge
     paddingLeft: 16, // 16px from edge
