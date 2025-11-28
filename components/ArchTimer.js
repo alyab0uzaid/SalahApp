@@ -67,17 +67,18 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
 
   // Smooth transitions when date changes
   useEffect(() => {
-    if (isCurrentDateToday) {
+    const isToday = isCurrentDateToday;
+    if (isToday) {
       // Fade in timer, fade out button
       Animated.parallel([
         Animated.timing(timerOpacity, {
           toValue: 1,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(buttonOpacity, {
           toValue: 0,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
@@ -86,17 +87,17 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
       Animated.parallel([
         Animated.timing(timerOpacity, {
           toValue: 0,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
         Animated.timing(buttonOpacity, {
           toValue: 1,
-          duration: 200,
+          duration: 300,
           useNativeDriver: true,
         }),
       ]).start();
     }
-  }, [isCurrentDateToday]);
+  }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity]);
 
   // Calculate next prayer and countdown - always update for today's timer
   useEffect(() => {

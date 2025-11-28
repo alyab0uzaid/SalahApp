@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Calendar } from 'react-native-calendars';
@@ -17,18 +17,34 @@ LocaleConfig.locales['en'] = {
 };
 LocaleConfig.defaultLocale = 'en';
 
+// Helper function to format date as YYYY-MM-DD in local timezone
+const formatDateLocal = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, prayerStatus }) => {
-  // Snap points for the bottom sheet - 75% of screen height
-  const snapPoints = useMemo(() => ['75%'], []);
+  // Track displayed month - always start with selectedDate
+  const [displayMonth, setDisplayMonth] = useState(selectedDate);
+  const [sheetKey, setSheetKey] = useState(0);
+  const [useSelectedDate, setUseSelectedDate] = useState(true);
 
-  // Track current month for custom header - reset to selectedDate when sheet opens
-  const [currentMonth, setCurrentMonth] = useState(selectedDate);
+  // Reset to selected date whenever selectedDate changes
+  useEffect(() => {
+    setDisplayMonth(selectedDate);
+    setUseSelectedDate(true);
+    setSheetKey(prev => prev + 1); // Force remount
+  }, [selectedDate]);
 
-  // Reset to selected date when sheet opens
+  // Reset to selected date whenever sheet closes (so it's ready for next open)
   const handleSheetChange = (index) => {
-    if (index === 0) {
-      // Sheet is opening - reset to selected date
-      setCurrentMonth(selectedDate);
+    if (index < 0) {
+      // Sheet is closing - reset to selected date so it's ready for next open
+      setDisplayMonth(selectedDate);
+      setUseSelectedDate(true);
+      setSheetKey(prev => prev + 1); // Force remount to ensure correct month
     }
   };
 
@@ -45,28 +61,30 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
 
   if (!selectedDate) return null;
 
-  // Format selected date for Calendar component (YYYY-MM-DD)
-  const selectedDateString = selectedDate.toISOString().split('T')[0];
+  // Format selected date for Calendar component (YYYY-MM-DD) in local timezone
+  const selectedDateString = formatDateLocal(selectedDate);
 
-  // Get today's date string
-  const todayDateString = new Date().toISOString().split('T')[0];
+  // Get today's date string in local timezone
+  // formatDateLocal already uses local time methods (getFullYear, getMonth, getDate)
+  const now = new Date();
+  const todayDateString = formatDateLocal(now);
 
   // Create marked dates object
   const markedDates = useMemo(() => {
     const marked = {};
 
-    // Mark today with a circle (border only, not filled)
+    // Mark today - if selected, show filled circle; otherwise show dot
+    // Only mark todayDateString once to ensure we don't accidentally mark tomorrow
     if (todayDateString === selectedDateString) {
-      // If today is selected, show it as selected with today circle
+      // If today is selected, show it as selected (filled circle, no dot)
       marked[todayDateString] = {
         selected: true,
         selectedColor: COLORS.text.primary,
+        marked: false, // Explicitly set to false to prevent any dot
         customStyles: {
           container: {
             backgroundColor: COLORS.text.primary,
             borderRadius: 16,
-            borderWidth: 1,
-            borderColor: COLORS.text.primary,
           },
           text: {
             color: COLORS.background.primary,
@@ -75,19 +93,10 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
         },
       };
     } else {
-      // Mark today with a circle border (not filled)
+      // If today is not selected, show dot under today (no circle)
       marked[todayDateString] = {
-        customStyles: {
-          container: {
-            borderWidth: 1,
-            borderColor: COLORS.text.primary,
-            borderRadius: 16,
-            backgroundColor: 'transparent',
-          },
-          text: {
-            color: COLORS.text.primary,
-          },
-        },
+        marked: true,
+        dotColor: COLORS.text.primary,
       };
     }
 
@@ -116,9 +125,11 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
           if (!marked[dateKey]) {
             marked[dateKey] = {};
           }
-          // Add dot for prayer tracking
-          marked[dateKey].marked = true;
-          marked[dateKey].dotColor = dateKey === selectedDateString ? COLORS.background.primary : COLORS.text.secondary;
+          // Add dot for prayer tracking (only if not already marked for today or selected)
+          if (dateKey !== todayDateString && dateKey !== selectedDateString) {
+            marked[dateKey].marked = true;
+            marked[dateKey].dotColor = COLORS.text.secondary;
+          }
         }
       });
     }
@@ -129,7 +140,9 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
   // Handle date selection
   const handleDayPress = (day) => {
     if (onDateSelect) {
-      const newDate = new Date(day.timestamp);
+      // Use dateString (YYYY-MM-DD) and parse in local timezone to avoid day-before issue
+      const [year, month, date] = day.dateString.split('-').map(Number);
+      const newDate = new Date(year, month - 1, date);
       onDateSelect(newDate);
       // Close the bottom sheet after selection
       bottomSheetRef.current?.close();
@@ -139,19 +152,19 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
   // Custom header component
   const renderHeader = () => {
     const monthNames = LocaleConfig.locales['en'].monthNames;
-    const month = currentMonth.getMonth();
-    const year = currentMonth.getFullYear();
+    const month = displayMonth.getMonth();
+    const year = displayMonth.getFullYear();
 
     const handlePrevMonth = () => {
-      const newDate = new Date(currentMonth);
+      const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() - 1);
-      setCurrentMonth(newDate);
+      setDisplayMonth(newDate);
     };
 
     const handleNextMonth = () => {
-      const newDate = new Date(currentMonth);
+      const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() + 1);
-      setCurrentMonth(newDate);
+      setDisplayMonth(newDate);
     };
 
     return (
@@ -175,24 +188,30 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
     <BottomSheet
       ref={bottomSheetRef}
       index={-1} // Start closed
-      snapPoints={snapPoints}
       enablePanDownToClose={true}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
       backdropComponent={renderBackdrop}
-      enableDynamicSizing={false}
+      enableDynamicSizing={true}
       onChange={handleSheetChange}
     >
       <BottomSheetView style={styles.contentContainer}>
         <Calendar
-          key={currentMonth.toISOString()}
-          current={currentMonth.toISOString().split('T')[0]}
+          key={`${selectedDateString}-${sheetKey}`}
+          current={useSelectedDate ? selectedDateString : formatDateLocal(displayMonth)}
           onDayPress={handleDayPress}
           markedDates={markedDates}
           markingType={'custom'}
           enableSwipeMonths={true}
           onMonthChange={(month) => {
-            setCurrentMonth(new Date(month.timestamp));
+            setDisplayMonth(new Date(month.timestamp));
+            setUseSelectedDate(false); // Switch to using displayMonth after navigation
+          }}
+          onVisibleMonthsChange={(months) => {
+            if (months.length > 0) {
+              setDisplayMonth(new Date(months[0].timestamp));
+              setUseSelectedDate(false); // Switch to using displayMonth after navigation
+            }
           }}
           theme={{
             backgroundColor: COLORS.background.secondary,
@@ -230,8 +249,7 @@ const styles = StyleSheet.create({
     width: 40,
   },
   contentContainer: {
-    flex: 1,
-    paddingHorizontal: SPACING.lg,
+    paddingHorizontal: SPACING.sm,
     paddingTop: SPACING.md,
     paddingBottom: SPACING.lg,
   },
