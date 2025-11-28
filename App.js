@@ -331,7 +331,10 @@ export default function App() {
     // If current status matches swipe direction, we're removing it
     const isRemoving = currentStatus === swipeStatus;
 
+    // Set pending swipe data FIRST so content is ready
     setPendingSwipe({ prayerName, prayerTime, direction, isRemoving });
+
+    // Then open sheet immediately
     prayerStatusBottomSheetRef.current?.snapToIndex(0);
   };
 

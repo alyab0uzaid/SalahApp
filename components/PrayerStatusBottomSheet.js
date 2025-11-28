@@ -37,9 +37,7 @@ const PrayerStatusBottomSheet = ({ bottomSheetRef, prayerName, prayerTime, direc
       <BottomSheetView style={styles.contentContainer}>
         <View style={styles.questionContainer}>
           <Text style={styles.questionText}>{question}</Text>
-          {prayerName && (
-            <Text style={styles.prayerNameText}>{prayerName.toUpperCase()}</Text>
-          )}
+          <Text style={styles.prayerNameText}>{prayerName?.toUpperCase()}</Text>
         </View>
 
         <View style={styles.buttonsContainer}>
