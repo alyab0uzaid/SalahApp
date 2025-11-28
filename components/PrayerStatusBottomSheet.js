@@ -34,20 +34,34 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
   const question = sheetData.isRemoving
     ? (sheetData.direction === 'right' ? 'REMOVE ON TIME?' : 'REMOVE LATE?')
     : (sheetData.direction === 'right' ? 'MARK ON TIME?' : 'MARK LATE?');
-  const confirmColor = sheetData.direction === 'right' ? '#81C784' : '#FF9A76';
   
-  // Convert hex to rgba for opacity
+  // Different colors for marking vs removing
+  const baseConfirmColor = sheetData.direction === 'right' ? '#81C784' : '#FF9A76';
+  const confirmColor = sheetData.isRemoving ? '#9E9E9E' : baseConfirmColor; // Grey for removing
+  
+  // Convert hex to rgba for opacity and darken
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16);
     const g = parseInt(hex.slice(3, 5), 16);
     const b = parseInt(hex.slice(5, 7), 16);
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   };
-  const confirmColorWithOpacity = hexToRgba(confirmColor, 0.2);
   
-  // Grey/white colors for cancel button
-  const cancelBorderColor = 'rgba(255, 255, 255, 0.3)';
-  const cancelBgColor = 'rgba(255, 255, 255, 0.1)';
+  // Darken the confirm color by reducing RGB values (more darkening)
+  const darkenColor = (hex, factor = 0.25) => {
+    const r = Math.max(0, Math.round(parseInt(hex.slice(1, 3), 16) * (1 - factor)));
+    const g = Math.max(0, Math.round(parseInt(hex.slice(3, 5), 16) * (1 - factor)));
+    const b = Math.max(0, Math.round(parseInt(hex.slice(5, 7), 16) * (1 - factor)));
+    return { r, g, b };
+  };
+  
+  const darkerConfirmColorRGB = darkenColor(confirmColor);
+  const darkerConfirmColor = `rgb(${darkerConfirmColorRGB.r}, ${darkerConfirmColorRGB.g}, ${darkerConfirmColorRGB.b})`;
+  const confirmColorWithOpacity = `rgba(${darkerConfirmColorRGB.r}, ${darkerConfirmColorRGB.g}, ${darkerConfirmColorRGB.b}, 0.2)`;
+  
+  // Grey/white colors for cancel button - darker
+  const cancelBorderColor = 'rgba(255, 255, 255, 0.2)';
+  const cancelBgColor = 'rgba(255, 255, 255, 0.06)';
 
   const renderBackdrop = (props) => (
     <BottomSheetBackdrop
@@ -97,7 +111,7 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
             style={({ pressed }) => [
               styles.button,
               {
-                borderColor: confirmColor,
+                borderColor: darkerConfirmColor,
                 borderWidth: 1,
                 backgroundColor: confirmColorWithOpacity,
               },
