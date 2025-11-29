@@ -11,6 +11,7 @@ import * as Adhan from 'adhan';
 import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
 import PrayerHeatmap from './components/PrayerHeatmap';
+import PrayerTrend from './components/PrayerTrend';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import DatePicker from './components/DatePicker';
@@ -509,6 +510,7 @@ export default function App() {
           notifications={notifications}
           onSwipeToConfirm={handleSwipeToConfirm}
         />
+        <PrayerTrend prayerStatus={prayerStatus} />
         <PrayerHeatmap prayerStatus={prayerStatus} />
       </ScrollView>
 

@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   title: {
     color: COLORS.text.tertiary,
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: FONTS.weights.regular.primary,
     marginBottom: SPACING.sm,
     textTransform: 'uppercase',

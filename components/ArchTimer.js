@@ -446,12 +446,38 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           );
         })}
 
-        {/* Current time indicator - solid circle, no glow */}
+        {/* Current time indicator - solid circle with glow */}
         {shouldShowCircle && (() => {
           // Use raw position to allow off-screen movement
           const point = currentPoint;
           return (
             <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
+              {/* Glow layers - multiple blurred circles for glow effect */}
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill={COLORS.accent.white}
+                filter="url(#glowBlur1)"
+                opacity={0.8}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill={COLORS.accent.white}
+                filter="url(#glowBlur2)"
+                opacity={0.6}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={10}
+                fill={COLORS.accent.white}
+                filter="url(#glowBlur3)"
+                opacity={0.4}
+              />
+              {/* Main circle on top */}
               <Circle
                 cx={point.x}
                 cy={point.y}
