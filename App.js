@@ -1,7 +1,8 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView, Animated } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView, Animated, Platform } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
+import Constants from 'expo-constants';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -9,6 +10,7 @@ import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import ArchTimer from './components/ArchTimer';
 import PrayerList from './components/PrayerList';
+import PrayerHeatmap from './components/PrayerHeatmap';
 import LocationTag from './components/LocationTag';
 import BottomNav from './components/BottomNav';
 import DatePicker from './components/DatePicker';
@@ -20,6 +22,10 @@ import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING } from './constants/theme';
 
 export default function App() {
+  // Get safe area top inset for notch/status bar spacing
+  const statusBarHeight = Platform.OS === 'ios' ? Constants.statusBarHeight : 0;
+  const safeAreaTop = statusBarHeight > 0 ? statusBarHeight : (Platform.OS === 'ios' ? 44 : 0);
+  
   // Load Space Grotesk and Space Mono fonts
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
@@ -48,8 +54,6 @@ export default function App() {
     }
     setActiveTab(tab);
   };
-  const [contentHeight, setContentHeight] = useState(0);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [selectedDate, setSelectedDate] = useState(new Date());
   
   // State to track prayer status (on-time/late) per date and prayer
@@ -429,14 +433,9 @@ export default function App() {
       {/* Keep home tab mounted but hidden for instant switching */}
       <ScrollView
         style={[styles.scroll, activeTab !== 'home' && styles.hidden]}
-        contentContainerStyle={[
-          styles.content,
-          contentHeight > 0 && scrollViewHeight > 0 && contentHeight < scrollViewHeight && { minHeight: scrollViewHeight }
-        ]}
+        contentContainerStyle={[styles.content, { paddingTop: safeAreaTop + SPACING.lg }]}
         showsVerticalScrollIndicator={false}
         clipsToBounds={false}
-        onContentSizeChange={(_, height) => setContentHeight(height)}
-        onLayout={(event) => setScrollViewHeight(event.nativeEvent.layout.height)}
         pointerEvents={activeTab === 'home' ? 'auto' : 'none'}
       >
         <LocationTag
@@ -510,6 +509,7 @@ export default function App() {
           notifications={notifications}
           onSwipeToConfirm={handleSwipeToConfirm}
         />
+        <PrayerHeatmap prayerStatus={prayerStatus} />
       </ScrollView>
 
       <View style={[
@@ -565,11 +565,8 @@ const styles = StyleSheet.create({
   },
   content: {
     alignItems: 'center',
-    justifyContent: 'center', // Center content vertically when shorter than screen
     width: '100%',
-    flexGrow: 1, // Allow content to grow for centering
-    paddingTop: SPACING.lg, // Minimal top padding for safe area
-    paddingBottom: SPACING.lg, // Minimal bottom padding
+    paddingBottom: SPACING.lg, // Bottom padding
     overflow: 'visible',
   },
   // Normal spacing system - no wrapper compensation needed
