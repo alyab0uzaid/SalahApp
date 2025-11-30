@@ -10,8 +10,8 @@ export const COLORS = {
   // Background colors - warm neutral tones (same shade, no blue tint)
   background: {
     primary: '#0D0C0E',      // Main app background
-    secondary: '#151314',    // Card/container background
-    tertiary: '#1F1E20',     // Highlighted containers
+    secondary: '#121111',    // Card/container background
+    tertiary: '#171618',     // Highlighted containers
   },
 
   // Border colors - warm neutral tones

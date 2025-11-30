@@ -17,6 +17,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
+import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
 
@@ -59,6 +60,8 @@ export default function App() {
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
+  const appStartTimeRef = useRef(Date.now());
+  const [minLoadingComplete, setMinLoadingComplete] = useState(false);
 
   // State for selected prayer in bottom sheet
   const [selectedPrayer, setSelectedPrayer] = useState(null);
@@ -68,6 +71,10 @@ export default function App() {
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Animated opacity for loading screen fade-out
+  const loadingOpacity = useRef(new Animated.Value(1)).current;
+  const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
 
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
@@ -207,6 +214,36 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // Ensure minimum loading screen duration (1.5 seconds)
+  useEffect(() => {
+    const minLoadingDuration = 1500; // 1.5 seconds
+    const elapsed = Date.now() - appStartTimeRef.current;
+    const remainingTime = Math.max(0, minLoadingDuration - elapsed);
+
+    const timer = setTimeout(() => {
+      setMinLoadingComplete(true);
+    }, remainingTime);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Handle fade transition when loading is complete
+  useEffect(() => {
+    if (fontsLoaded && !loading && minLoadingComplete) {
+      // Small delay to ensure content is rendered before fading
+      setTimeout(() => {
+        // Fade out loading screen
+        Animated.timing(loadingOpacity, {
+          toValue: 0,
+          duration: 400,
+          useNativeDriver: true,
+        }).start(() => {
+          setLoadingFadeComplete(true);
+        });
+      }, 50);
+    }
+  }, [fontsLoaded, loading, minLoadingComplete]);
+
   // Handle Qibla background color change
   const handleQiblaBackgroundChange = (isAligned) => {
     Animated.timing(qiblaBgOpacity, {
@@ -315,121 +352,137 @@ export default function App() {
     }, 50);
   };
 
-  if (!fontsLoaded || loading) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={COLORS.text.primary} />
-        {locationError && (
-          <Text style={styles.errorText}>{locationError}</Text>
-        )}
-      </View>
-    );
-  }
-
-  if (locationError && prayerTimes.length === 0) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <Text style={styles.errorText}>
-          Unable to get location.
-        </Text>
-        <Text style={styles.errorText}>
-          {locationError}
-        </Text>
-      </View>
-    );
-  }
-
+  // Check if content is ready to render
+  const isContentReady = fontsLoaded && !loading && minLoadingComplete;
+  
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <>
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      <NavigationContainer>
-        <Tab.Navigator
-          screenOptions={({ route }) => ({
-            headerShown: false,
-            tabBarStyle: {
-              backgroundColor: COLORS.background.primary,
-              borderTopWidth: 0,
-              paddingBottom: SPACING.xxxl,
-              paddingTop: SPACING.sm,
-              height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
-            },
-            tabBarActiveTintColor: COLORS.text.primary,
-            tabBarInactiveTintColor: COLORS.text.faded,
-            tabBarShowLabel: false,
-            tabBarIcon: ({ color, size }) => {
-              let iconName;
+      {/* Main content - rendered behind loading screen when ready */}
+      {isContentReady && (
+        <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
+          {(() => {
+            // Show error screen if location failed and no prayer times
+            if (locationError && prayerTimes.length === 0) {
+              return (
+                <View style={[styles.container, styles.centerContent]}>
+                  <Text style={styles.errorText}>
+                    Unable to get location.
+                  </Text>
+                  <Text style={styles.errorText}>
+                    {locationError}
+                  </Text>
+                </View>
+              );
+            }
 
-              if (route.name === 'Home') {
-                iconName = 'home-variant-outline';
-              } else if (route.name === 'Qibla') {
-                iconName = 'compass-outline';
-              } else if (route.name === 'Tracker') {
-                iconName = 'chart-line';
-              } else if (route.name === 'Settings') {
-                iconName = 'cog-outline';
-              }
+            return (
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <NavigationContainer>
+                  <Tab.Navigator
+                    screenOptions={({ route }) => ({
+                      headerShown: false,
+                      tabBarStyle: {
+                        backgroundColor: COLORS.background.primary,
+                        borderTopWidth: 0,
+                        paddingBottom: SPACING.xxxl,
+                        paddingTop: SPACING.sm,
+                        height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
+                      },
+                      tabBarActiveTintColor: COLORS.text.primary,
+                      tabBarInactiveTintColor: COLORS.text.faded,
+                      tabBarShowLabel: false,
+                      tabBarIcon: ({ color, size }) => {
+                        let iconName;
 
-              return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
-            },
-          })}
-        >
-          <Tab.Screen name="Home">
-            {(props) => (
-              <HomeScreen
-                {...props}
-                location={location}
-                locationName={locationName}
-                prayerTimes={prayerTimes}
-                prayerNames={prayerNames}
-                currentTime={currentTime}
-                selectedDate={selectedDate}
-                setSelectedDate={setSelectedDate}
-                prayerStatus={prayerStatus}
-                handlePrayerStatusUpdate={handlePrayerStatusUpdate}
-                handlePrayerPress={handlePrayerPress}
-                notifications={notifications}
-                handleSwipeToConfirm={handleSwipeToConfirm}
-                handleDatePickerPress={handleDatePickerPress}
-                todayPrayerTimesRef={todayPrayerTimesRef}
-                setPrayerTimes={setPrayerTimes}
-              />
-            )}
-          </Tab.Screen>
-          <Tab.Screen name="Qibla">
-            {(props) => (
-              <QiblaScreen
-                {...props}
-                qiblaBgOpacity={qiblaBgOpacity}
-                onBackgroundChange={handleQiblaBackgroundChange}
-              />
-            )}
-          </Tab.Screen>
-          <Tab.Screen name="Tracker" component={TrackerScreen} />
-          <Tab.Screen name="Settings" component={SettingsScreen} />
-        </Tab.Navigator>
-      </NavigationContainer>
+                        if (route.name === 'Home') {
+                          iconName = 'home-variant-outline';
+                        } else if (route.name === 'Qibla') {
+                          iconName = 'compass-outline';
+                        } else if (route.name === 'Tracker') {
+                          iconName = 'chart-line';
+                        } else if (route.name === 'Settings') {
+                          iconName = 'cog-outline';
+                        }
 
-      {/* Bottom Sheets */}
-      <PrayerDetailsBottomSheet
-        bottomSheetRef={bottomSheetRef}
-        selectedPrayer={selectedPrayer}
-        notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
-        onNotificationToggle={handleNotificationToggle}
-      />
+                        return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
+                      },
+                    })}
+                  >
+                    <Tab.Screen name="Home">
+                      {(props) => (
+                        <HomeScreen
+                          {...props}
+                          location={location}
+                          locationName={locationName}
+                          prayerTimes={prayerTimes}
+                          prayerNames={prayerNames}
+                          currentTime={currentTime}
+                          selectedDate={selectedDate}
+                          setSelectedDate={setSelectedDate}
+                          prayerStatus={prayerStatus}
+                          handlePrayerStatusUpdate={handlePrayerStatusUpdate}
+                          handlePrayerPress={handlePrayerPress}
+                          notifications={notifications}
+                          handleSwipeToConfirm={handleSwipeToConfirm}
+                          handleDatePickerPress={handleDatePickerPress}
+                          todayPrayerTimesRef={todayPrayerTimesRef}
+                          setPrayerTimes={setPrayerTimes}
+                        />
+                      )}
+                    </Tab.Screen>
+                    <Tab.Screen name="Qibla">
+                      {(props) => (
+                        <QiblaScreen
+                          {...props}
+                          qiblaBgOpacity={qiblaBgOpacity}
+                          onBackgroundChange={handleQiblaBackgroundChange}
+                        />
+                      )}
+                    </Tab.Screen>
+                    <Tab.Screen name="Tracker" component={TrackerScreen} />
+                    <Tab.Screen name="Settings" component={SettingsScreen} />
+                  </Tab.Navigator>
+                </NavigationContainer>
 
-      <DatePickerBottomSheet
-        bottomSheetRef={datePickerBottomSheetRef}
-        selectedDate={selectedDate}
-        onDateSelect={handleDateSelect}
-        prayerStatus={prayerStatus}
-      />
+                {/* Bottom Sheets */}
+                <PrayerDetailsBottomSheet
+                  bottomSheetRef={bottomSheetRef}
+                  selectedPrayer={selectedPrayer}
+                  notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
+                  onNotificationToggle={handleNotificationToggle}
+                />
 
-      <PrayerStatusBottomSheet
-        ref={prayerStatusBottomSheetRef}
-        onConfirm={handleStatusConfirm}
-        onCancel={handleStatusCancel}
-      />
-    </GestureHandlerRootView>
+                <DatePickerBottomSheet
+                  bottomSheetRef={datePickerBottomSheetRef}
+                  selectedDate={selectedDate}
+                  onDateSelect={handleDateSelect}
+                  prayerStatus={prayerStatus}
+                />
+
+                <PrayerStatusBottomSheet
+                  ref={prayerStatusBottomSheetRef}
+                  onConfirm={handleStatusConfirm}
+                  onCancel={handleStatusCancel}
+                />
+              </GestureHandlerRootView>
+            );
+          })()}
+        </View>
+      )}
+      {/* Loading screen with fade-out - stays on top until fade completes */}
+      {isContentReady && !loadingFadeComplete && (
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: loadingOpacity, zIndex: 1000 }]}>
+          <LoadingScreen />
+        </Animated.View>
+      )}
+      {/* Show loading screen while content is not ready */}
+      {!isContentReady && (
+        <View style={StyleSheet.absoluteFill}>
+          <LoadingScreen />
+        </View>
+      )}
+    </>
   );
 }
 
