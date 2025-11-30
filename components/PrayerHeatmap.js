@@ -6,10 +6,6 @@ import { COLORS, FONTS, SPACING } from '../constants/theme';
 const PrayerHeatmap = ({ prayerStatus }) => {
   const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
-  // Debug: log the prayer status to see what we're getting
-  console.log('PrayerHeatmap - prayerStatus:', JSON.stringify(prayerStatus, null, 2));
-  console.log('PrayerHeatmap - RE-RENDERING');
-
   // Get last 21 days (three weeks)
   const getDays = () => {
     const days = [];
@@ -39,8 +35,6 @@ const PrayerHeatmap = ({ prayerStatus }) => {
 
     // Try both capitalized and lowercase versions
     const status = prayerStatus[day][prayer] || prayerStatus[day][prayer.toLowerCase()];
-
-    console.log(`getCellStyle - day: ${day}, prayer: ${prayer}, status: ${status}, dayData:`, prayerStatus[day]);
 
     if (status === 'on-time') {
       return { fill: '#81C784', opacity: 1, hasStroke: false }; // Green at full opacity
@@ -79,7 +73,6 @@ const PrayerHeatmap = ({ prayerStatus }) => {
           {days.map((day, dayIndex) => (
             prayers.map((prayer, prayerIndex) => {
               const { fill, opacity, hasStroke } = getCellStyle(day, prayer);
-              console.log(`Rendering cell: ${day}-${prayer}, fill: ${fill}, opacity: ${opacity}`);
               return (
                 <Rect
                   key={`${day}-${prayer}`}

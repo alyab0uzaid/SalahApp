@@ -34,7 +34,6 @@ const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress })
       }
       return '';
     } catch (error) {
-      console.warn('Hijri date conversion error:', error);
       return '';
     }
   };
