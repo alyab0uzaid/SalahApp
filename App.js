@@ -349,9 +349,9 @@ export default function App() {
             tabBarStyle: {
               backgroundColor: COLORS.background.primary,
               borderTopWidth: 0,
-              paddingBottom: SPACING.sm,
+              paddingBottom: SPACING.xxxl,
               paddingTop: SPACING.sm,
-              height: 60,
+              height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
             },
             tabBarActiveTintColor: COLORS.text.primary,
             tabBarInactiveTintColor: COLORS.text.faded,
