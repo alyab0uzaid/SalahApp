@@ -4,7 +4,7 @@ import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, 
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
-const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday }, ref) => {
+const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday, isVisible = true }, ref) => {
   // Check if selected date is today
   const isToday = () => {
     if (!selectedDate) return true;
@@ -102,13 +102,13 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     }
   }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity]);
 
-  // Calculate next prayer and countdown - only update when viewing today
+  // Calculate next prayer and countdown - only update when viewing today AND visible
   useEffect(() => {
     // Update ref immediately to prevent any interval callbacks from running
     isTodayRef.current = isCurrentDateToday;
-    
-    // If not viewing today, stop updates but keep the last countdown value (frozen)
-    if (!isCurrentDateToday) {
+
+    // If not viewing today OR not visible, stop updates but keep the last countdown value (frozen)
+    if (!isCurrentDateToday || !isVisible) {
       return;
     }
 
@@ -165,7 +165,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     const interval = setInterval(updateTimer, 1000);
 
     return () => clearInterval(interval);
-  }, [prayerTimes, prayerNames, isCurrentDateToday]);
+  }, [prayerTimes, prayerNames, isCurrentDateToday, isVisible]);
 
   // Get all prayer times in minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));

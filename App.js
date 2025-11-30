@@ -1,33 +1,29 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Dimensions, ScrollView, Animated, Platform } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
-import Constants from 'expo-constants';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
-import ArchTimer from './components/ArchTimer';
-import PrayerList from './components/PrayerList';
-import PrayerHeatmap from './components/PrayerHeatmap';
-import PrayerTrend from './components/PrayerTrend';
-import LocationTag from './components/LocationTag';
-import BottomNav from './components/BottomNav';
-import DatePicker from './components/DatePicker';
-import QiblaCompass from './components/QiblaCompass';
+import HomeScreen from './screens/HomeScreen';
+import QiblaScreen from './screens/QiblaScreen';
+import TrackerScreen from './screens/TrackerScreen';
+import SettingsScreen from './screens/SettingsScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
-import { COLORS, FONTS, SPACING } from './constants/theme';
+import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
+
+const Tab = createBottomTabNavigator();
 
 export default function App() {
-  // Get safe area top inset for notch/status bar spacing
-  const statusBarHeight = Platform.OS === 'ios' ? Constants.statusBarHeight : 0;
-  const safeAreaTop = statusBarHeight > 0 ? statusBarHeight : (Platform.OS === 'ios' ? 44 : 0);
-  
-  // Load Space Grotesk and Space Mono fonts
+  // Load fonts
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
     SpaceGrotesk_500Medium,
@@ -38,31 +34,19 @@ export default function App() {
 
   // Prayer names
   const prayerNames = ['Fajr', 'Sunrise', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-  
+
   // State for location and prayer times
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [locationName, setLocationName] = useState(null);
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('home');
-  
-  // Reset PrayerList when returning to home tab to fix gesture handler
-  const handleTabChange = (tab) => {
-    if (tab === 'home' && activeTab !== 'home') {
-      // Coming back to home - remount PrayerList to reset gesture handlers
-      setPrayerListKey(prev => prev + 1);
-    }
-    setActiveTab(tab);
-  };
   const [selectedDate, setSelectedDate] = useState(new Date());
-  
+
   // State to track prayer status (on-time/late) per date and prayer
-  // Structure: { [dateKey]: { [prayerName]: 'on-time' | 'late' } }
   const [prayerStatus, setPrayerStatus] = useState({});
 
   // State to track which prayers have notifications enabled
-  // Default: All prayers enabled except Sunrise
   const [notifications, setNotifications] = useState(
     prayerNames.reduce((acc, name) => ({
       ...acc,
@@ -70,20 +54,16 @@ export default function App() {
     }), {})
   );
 
-  // Key to force remount of PrayerList when returning to home tab (fixes gesture handler issue)
-  const [prayerListKey, setPrayerListKey] = useState(0);
-
-  // Cache today's prayer times to avoid recalculation when switching back
+  // Cache today's prayer times
   const todayPrayerTimesRef = useRef(null);
-  const archTimerRef = useRef(null);
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
 
   // State for selected prayer in bottom sheet
   const [selectedPrayer, setSelectedPrayer] = useState(null);
-  
-  // State for prayer status confirmation - just store the pending swipe data
+
+  // State for prayer status confirmation
   const [pendingSwipe, setPendingSwipe] = useState(null);
 
   // Animated background color for Qibla alignment
@@ -99,10 +79,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       try {
-        // Check existing permission first – helpful on reloads
         const existing = await Location.getForegroundPermissionsAsync();
-
-        // If we already have permission, skip the prompt
         let status = existing.status;
 
         if (status !== 'granted' && existing.canAskAgain) {
@@ -111,7 +88,6 @@ export default function App() {
         }
 
         if (status !== 'granted') {
-          // Either denied or cannot ask again – tell user to change browser/device settings
           setLocationError(
             status === 'denied'
               ? 'Location permission denied. Please enable location access for this app in your browser or device settings.'
@@ -121,7 +97,6 @@ export default function App() {
           return;
         }
 
-        // Helper to enforce a hard timeout so the UI never spins forever
         const withTimeout = (promise, ms) =>
           Promise.race([
             promise,
@@ -132,17 +107,15 @@ export default function App() {
 
         let locationData;
 
-        // Try to get current position with sane options and a hard timeout
         try {
           locationData = await withTimeout(
             Location.getCurrentPositionAsync({
               accuracy: Location.Accuracy.Balanced,
               maximumAge: 60000,
             }),
-            15000 // 15 seconds max
+            15000
           );
         } catch (positionError) {
-          // If the browser / device can't get a fresh fix, fall back to last known position
           try {
             const lastKnown = await Location.getLastKnownPositionAsync();
             if (lastKnown) {
@@ -171,12 +144,10 @@ export default function App() {
 
           if (reverseGeocode && reverseGeocode.length > 0) {
             const address = reverseGeocode[0];
-            // Try to get city, or use locality, or subAdministrativeArea
             const city = address.city || address.locality || address.subAdministrativeArea || address.administrativeArea || 'Unknown';
             setLocationName(city);
           }
         } catch (geocodeError) {
-          // Fallback to coordinates if geocoding fails
           setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
         }
       } catch (error) {
@@ -194,22 +165,19 @@ export default function App() {
       const isToday = selectedDate.getDate() === today.getDate() &&
         selectedDate.getMonth() === today.getMonth() &&
         selectedDate.getFullYear() === today.getFullYear();
-      
-      // If switching to today and we have cached today's times, skip recalculation
-      // (prayer times are already set in onGoToToday handler)
+
       if (isToday && todayPrayerTimesRef.current && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
-        return; // Already set, skip
+        return;
       }
-      
+
       const coordinates = new Adhan.Coordinates(
         location.coords.latitude,
         location.coords.longitude
       );
-      
+
       const params = Adhan.CalculationMethod.MuslimWorldLeague();
       const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
-      
-      // Format prayer times
+
       const formattedTimes = [
         formatPrayerTime(prayerTimesData.fajr),
         formatPrayerTime(prayerTimesData.sunrise),
@@ -218,24 +186,22 @@ export default function App() {
         formatPrayerTime(prayerTimesData.maghrib),
         formatPrayerTime(prayerTimesData.isha),
       ];
-      
-      // Cache today's prayer times for instant switching
+
       if (isToday) {
         todayPrayerTimesRef.current = formattedTimes;
       }
-      
+
       setPrayerTimes(formattedTimes);
       setLoading(false);
     }
   }, [location, selectedDate]);
 
-  // Update current time every 10 seconds for smoother movement
+  // Update current time every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(formatTime(new Date()));
-    }, 10000); // Update every 10 seconds
+    }, 10000);
 
-    // Also update immediately on mount
     setCurrentTime(formatTime(new Date()));
 
     return () => clearInterval(interval);
@@ -250,16 +216,15 @@ export default function App() {
     }).start();
   };
 
-  // Handle prayer row press - open bottom sheet
+  // Handle prayer row press
   const handlePrayerPress = (prayer) => {
     setSelectedPrayer(prayer);
-    // Subtle delay before opening bottom sheet
     setTimeout(() => {
       bottomSheetRef.current?.snapToIndex(0);
     }, 200);
   };
 
-  // Handle notification toggle from bottom sheet
+  // Handle notification toggle
   const handleNotificationToggle = (enabled) => {
     if (selectedPrayer) {
       setNotifications(prev => ({
@@ -269,37 +234,28 @@ export default function App() {
     }
   };
 
-  // Handle date picker press - open bottom sheet
+  // Handle date picker press
   const handleDatePickerPress = () => {
     datePickerBottomSheetRef.current?.snapToIndex(0);
   };
 
-  // Handle date selection from calendar
+  // Handle date selection
   const handleDateSelect = (newDate) => {
     const today = new Date();
     const isNewDateToday = newDate.getDate() === today.getDate() &&
       newDate.getMonth() === today.getMonth() &&
       newDate.getFullYear() === today.getFullYear();
 
-    // If switching to today, trigger immediate animation like the "Today" button
-    if (isNewDateToday) {
-      // Start animation immediately, before state update
-      if (archTimerRef.current) {
-        archTimerRef.current.animateToToday();
-      }
-      // Use cached prayer times immediately if available
-      if (todayPrayerTimesRef.current) {
-        setPrayerTimes(todayPrayerTimesRef.current);
-      }
+    if (isNewDateToday && todayPrayerTimesRef.current) {
+      setPrayerTimes(todayPrayerTimesRef.current);
     }
     setSelectedDate(newDate);
   };
 
-  // Handle prayer status update (on-time or late, or null to remove)
+  // Handle prayer status update
   const handlePrayerStatusUpdate = (prayerName, status) => {
-    // Create a date key (YYYY-MM-DD format)
     const dateKey = selectedDate.toISOString().split('T')[0];
-    
+
     setPrayerStatus(prev => {
       const newState = {
         ...prev,
@@ -307,55 +263,42 @@ export default function App() {
           ...(prev[dateKey] || {}),
         },
       };
-      
+
       if (status === null) {
-        // Remove the status if null
         const { [prayerName]: _, ...rest } = newState[dateKey];
         newState[dateKey] = rest;
-        // Remove the date key if it's now empty
         if (Object.keys(newState[dateKey]).length === 0) {
           const { [dateKey]: __, ...restDates } = newState;
           return restDates;
         }
       } else {
-        // Set the status
         newState[dateKey][prayerName] = status;
       }
-      
+
       return newState;
     });
   };
 
-  // Handle swipe to open confirmation bottom sheet
+  // Handle swipe to confirm
   const handleSwipeToConfirm = (prayerName, prayerTime, direction) => {
-    // Check current status to determine if we're marking or removing
     const dateKey = selectedDate.toISOString().split('T')[0];
     const currentStatus = prayerStatus[dateKey]?.[prayerName] || null;
     const swipeStatus = direction === 'right' ? 'on-time' : 'late';
-
-    // If current status matches swipe direction, we're removing it
     const isRemoving = currentStatus === swipeStatus;
 
-    // Store pending swipe for confirmation handler
     setPendingSwipe({ prayerName, prayerTime, direction, isRemoving });
-
-    // Open sheet with data via imperative API
     prayerStatusBottomSheetRef.current?.open({ prayerName, prayerTime, direction, isRemoving });
   };
 
-  // Handle confirm - mark prayer status or remove it
+  // Handle confirm
   const handleStatusConfirm = () => {
-    // Close sheet first to avoid flash
     prayerStatusBottomSheetRef.current?.close();
 
-    // Update status after a tiny delay to let sheet start closing
     setTimeout(() => {
       if (pendingSwipe?.prayerName && pendingSwipe?.direction) {
         if (pendingSwipe.isRemoving) {
-          // Remove the status
           handlePrayerStatusUpdate(pendingSwipe.prayerName, null);
         } else {
-          // Set the status
           const status = pendingSwipe.direction === 'right' ? 'on-time' : 'late';
           handlePrayerStatusUpdate(pendingSwipe.prayerName, status);
         }
@@ -364,19 +307,13 @@ export default function App() {
     }, 50);
   };
 
-  // Handle cancel - close sheet without changes
+  // Handle cancel
   const handleStatusCancel = () => {
     prayerStatusBottomSheetRef.current?.close();
     setTimeout(() => {
       setPendingSwipe(null);
     }, 50);
   };
-
-  // Interpolate background color
-  const backgroundColor = qiblaBgOpacity.interpolate({
-    inputRange: [0, 1],
-    outputRange: [COLORS.background.primary, 'rgb(49, 199, 86)'],
-  });
 
   if (!fontsLoaded || loading) {
     return (
@@ -404,133 +341,75 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Animated.View style={[
-        styles.container,
-        activeTab === 'qibla' && { backgroundColor, justifyContent: 'center' }
-      ]} clipsToBounds={false}>
-        <StatusBar style="light" translucent backgroundColor="transparent" />
+      <StatusBar style="light" translucent backgroundColor="transparent" />
+      <NavigationContainer>
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            tabBarStyle: {
+              backgroundColor: COLORS.background.primary,
+              borderTopWidth: 0,
+              paddingBottom: SPACING.sm,
+              paddingTop: SPACING.sm,
+              height: 60,
+            },
+            tabBarActiveTintColor: COLORS.text.primary,
+            tabBarInactiveTintColor: COLORS.text.faded,
+            tabBarShowLabel: false,
+            tabBarIcon: ({ color, size }) => {
+              let iconName;
 
-      {/* Show Qibla compass when qibla tab is active */}
-      {activeTab === 'qibla' && (
-        <QiblaCompass onBackgroundChange={handleQiblaBackgroundChange} />
-      )}
-
-      {/* Tracker tab placeholder */}
-      {activeTab === 'tracker' && (
-        <View style={styles.placeholderContainer}>
-          <Text style={styles.placeholderTitle}>Tracker</Text>
-          <Text style={styles.placeholderText}>Coming Soon</Text>
-        </View>
-      )}
-
-      {/* Settings tab placeholder */}
-      {activeTab === 'settings' && (
-        <View style={styles.placeholderContainer}>
-          <Text style={styles.placeholderTitle}>Settings</Text>
-          <Text style={styles.placeholderText}>Coming Soon</Text>
-        </View>
-      )}
-
-      {/* Keep home tab mounted but hidden for instant switching */}
-      <ScrollView
-        style={[styles.scroll, activeTab !== 'home' && styles.hidden]}
-        contentContainerStyle={[styles.content, { paddingTop: safeAreaTop + SPACING.lg }]}
-        showsVerticalScrollIndicator={false}
-        clipsToBounds={false}
-        pointerEvents={activeTab === 'home' ? 'auto' : 'none'}
-      >
-        <LocationTag
-          locationName={locationName}
-          style={styles.locationTag}
-        />
-        <ArchTimer
-          ref={archTimerRef}
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
-          currentTime={currentTime}
-          width={Dimensions.get('window').width}
-          height={200}
-          style={styles.archTimer}
-          selectedDate={selectedDate}
-          onGoToToday={() => {
-            const today = new Date();
-            // Only update if not already today to avoid unnecessary re-renders
-            const currentDate = selectedDate;
-            const isAlreadyToday = currentDate &&
-              currentDate.getDate() === today.getDate() &&
-              currentDate.getMonth() === today.getMonth() &&
-              currentDate.getFullYear() === today.getFullYear();
-            if (!isAlreadyToday) {
-              // Start animation immediately, before state update
-              if (archTimerRef.current) {
-                archTimerRef.current.animateToToday();
+              if (route.name === 'Home') {
+                iconName = 'home-variant-outline';
+              } else if (route.name === 'Qibla') {
+                iconName = 'compass-outline';
+              } else if (route.name === 'Tracker') {
+                iconName = 'chart-line';
+              } else if (route.name === 'Settings') {
+                iconName = 'cog-outline';
               }
-              // Use cached prayer times immediately if available
-              if (todayPrayerTimesRef.current) {
-                setPrayerTimes(todayPrayerTimesRef.current);
-              }
-              setSelectedDate(today);
-            }
-          }}
-        />
-        <DatePicker
-          selectedDate={selectedDate}
-          onDateChange={(newDate) => {
-            const today = new Date();
-            const isNewDateToday = newDate.getDate() === today.getDate() &&
-              newDate.getMonth() === today.getMonth() &&
-              newDate.getFullYear() === today.getFullYear();
 
-            // If switching to today, trigger immediate animation like the "Today" button
-            if (isNewDateToday) {
-              // Start animation immediately, before state update
-              if (archTimerRef.current) {
-                archTimerRef.current.animateToToday();
-              }
-              // Use cached prayer times immediately if available
-              if (todayPrayerTimesRef.current) {
-                setPrayerTimes(todayPrayerTimesRef.current);
-              }
-            }
-            setSelectedDate(newDate);
-          }}
-          onDatePress={handleDatePickerPress}
-          style={styles.datePicker}
-        />
-        <PrayerList
-          key={prayerListKey}
-          prayerTimes={prayerTimes}
-          prayerNames={prayerNames}
-          currentTime={currentTime}
-          style={styles.prayerList}
-          selectedDate={selectedDate}
-          onPrayerStatusUpdate={handlePrayerStatusUpdate}
-          prayerStatus={prayerStatus}
-          onPrayerPress={handlePrayerPress}
-          notifications={notifications}
-          onSwipeToConfirm={handleSwipeToConfirm}
-        />
-        <PrayerTrend prayerStatus={prayerStatus} />
-        <PrayerHeatmap prayerStatus={prayerStatus} />
-      </ScrollView>
+              return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
+            },
+          })}
+        >
+          <Tab.Screen name="Home">
+            {(props) => (
+              <HomeScreen
+                {...props}
+                location={location}
+                locationName={locationName}
+                prayerTimes={prayerTimes}
+                prayerNames={prayerNames}
+                currentTime={currentTime}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                prayerStatus={prayerStatus}
+                handlePrayerStatusUpdate={handlePrayerStatusUpdate}
+                handlePrayerPress={handlePrayerPress}
+                notifications={notifications}
+                handleSwipeToConfirm={handleSwipeToConfirm}
+                handleDatePickerPress={handleDatePickerPress}
+                todayPrayerTimesRef={todayPrayerTimesRef}
+                setPrayerTimes={setPrayerTimes}
+              />
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Qibla">
+            {(props) => (
+              <QiblaScreen
+                {...props}
+                qiblaBgOpacity={qiblaBgOpacity}
+                onBackgroundChange={handleQiblaBackgroundChange}
+              />
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Tracker" component={TrackerScreen} />
+          <Tab.Screen name="Settings" component={SettingsScreen} />
+        </Tab.Navigator>
+      </NavigationContainer>
 
-      <View style={[
-        styles.bottomNavWrapper,
-        (activeTab === 'qibla' || activeTab === 'tracker' || activeTab === 'settings') && {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: activeTab === 'qibla' ? 'transparent' : COLORS.background.primary,
-        }
-      ]}>
-        <BottomNav
-          activeTab={activeTab}
-          onTabPress={handleTabChange}
-        />
-      </View>
-
-      {/* Prayer Details Bottom Sheet */}
+      {/* Bottom Sheets */}
       <PrayerDetailsBottomSheet
         bottomSheetRef={bottomSheetRef}
         selectedPrayer={selectedPrayer}
@@ -538,7 +417,6 @@ export default function App() {
         onNotificationToggle={handleNotificationToggle}
       />
 
-      {/* Date Picker Bottom Sheet */}
       <DatePickerBottomSheet
         bottomSheetRef={datePickerBottomSheetRef}
         selectedDate={selectedDate}
@@ -546,13 +424,11 @@ export default function App() {
         prayerStatus={prayerStatus}
       />
 
-      {/* Prayer Status Confirmation Bottom Sheet */}
       <PrayerStatusBottomSheet
         ref={prayerStatusBottomSheetRef}
         onConfirm={handleStatusConfirm}
         onCancel={handleStatusCancel}
       />
-      </Animated.View>
     </GestureHandlerRootView>
   );
 }
@@ -561,43 +437,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background.primary,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingTop: 0,
-  },
-  content: {
-    alignItems: 'center',
-    width: '100%',
-    paddingBottom: SPACING.lg, // Bottom padding
-    overflow: 'visible',
-  },
-  // Normal spacing system - no wrapper compensation needed
-  locationTag: {
-    marginBottom: SPACING.xxl, // Normal spacing to next component
-  },
-  archTimer: {
-    marginBottom: SPACING.lg, // No spacing between ArchTimer and PrayerList
-  },
-  datePicker: {
-    marginBottom: SPACING.md,
-  },
-  prayerList: {
-    marginTop: 0, // Pull up to overlap with timer (timer extends beyond container)
-  },
-  scroll: {
-    flex: 1,
-    width: '100%',
-  },
-  hidden: {
-    display: 'none',
-  },
-  bottomNavWrapper: {
-    width: '100%',
-    backgroundColor: COLORS.background.primary,
-    paddingBottom: SPACING.sm,
   },
   centerContent: {
     justifyContent: 'center',
+    alignItems: 'center',
   },
   errorText: {
     color: COLORS.text.tertiary,
@@ -606,23 +449,5 @@ const styles = StyleSheet.create({
     marginTop: SPACING.lg,
     textAlign: 'center',
     paddingHorizontal: SPACING.lg,
-  },
-  placeholderContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%',
-    paddingHorizontal: SPACING.lg,
-  },
-  placeholderTitle: {
-    color: COLORS.text.primary,
-    fontSize: FONTS.sizes.xxl,
-    fontFamily: FONTS.weights.medium.primary,
-    marginBottom: SPACING.md,
-  },
-  placeholderText: {
-    color: COLORS.text.tertiary,
-    fontSize: FONTS.sizes.lg,
-    fontFamily: FONTS.weights.regular.primary,
   },
 });
