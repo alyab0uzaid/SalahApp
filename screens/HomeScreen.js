@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { ScrollView, StyleSheet, Platform, Dimensions } from 'react-native';
-import Constants from 'expo-constants';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArchTimer from '../components/ArchTimer';
 import PrayerList from '../components/PrayerList';
 import PrayerHeatmap from '../components/PrayerHeatmap';
@@ -27,15 +27,12 @@ export default function HomeScreen({
   setPrayerTimes,
 }) {
   const archTimerRef = useRef(null);
-
-  // Get safe area top inset for notch/status bar spacing
-  const statusBarHeight = Platform.OS === 'ios' ? Constants.statusBarHeight : 0;
-  const safeAreaTop = statusBarHeight > 0 ? statusBarHeight : (Platform.OS === 'ios' ? 44 : 0);
+  const insets = useSafeAreaInsets();
 
   return (
     <ScrollView
       style={styles.scroll}
-      contentContainerStyle={[styles.content, { paddingTop: safeAreaTop + SPACING.lg }]}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.lg }]}
       showsVerticalScrollIndicator={false}
       clipsToBounds={false}
     >

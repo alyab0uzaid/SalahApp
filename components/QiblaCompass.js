@@ -5,10 +5,12 @@ import Svg, { Path, Circle } from 'react-native-svg';
 import { Magnetometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { COLORS, FONTS, SPACING, ICON_SIZES } from '../constants/theme';
 
 const { width, height } = Dimensions.get('window');
 const COMPASS_SIZE = width * 0.95; // Increased from 0.8 to 0.95 for bigger compass
+// Navbar height calculation
+const NAVBAR_HEIGHT = SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl;
 
 // Fixed circle parameters
 const CIRCLE_RADIUS = COMPASS_SIZE * 0.42; // Increased from 0.35 to 0.42 for more space around arrow
@@ -52,9 +54,9 @@ const getDirectionText = (rotateKaba) => {
     : normalizedAngle;
 
   if (angleFromNorth < 5) {
-    return 'Facing the Qibla';
+    return 'Facing Qibla';
   } else if (normalizedAngle > 0 && normalizedAngle < 45) {
-    return 'Slightly to your right';
+    return 'Slightly right';
   } else if (normalizedAngle >= 45 && normalizedAngle < 135) {
     return 'To your right';
   } else if (normalizedAngle >= 135 && normalizedAngle < 225) {
@@ -62,9 +64,9 @@ const getDirectionText = (rotateKaba) => {
   } else if (normalizedAngle >= 225 && normalizedAngle < 315) {
     return 'To your left';
   } else if (normalizedAngle >= 315 && normalizedAngle < 360) {
-    return 'Slightly to your left';
+    return 'Slightly left';
   } else {
-    return 'Facing the Qibla';
+    return 'Facing Qibla';
   }
 };
 
@@ -92,12 +94,14 @@ const calculateAngle = (magnetometerValue, lastAngle, threshold = 0.3) => {
   return transformedAngle;
 };
 
-export default function QiblaCompass({ onBackgroundChange, isScreenFocused = true }) {
+export default function QiblaCompass({ onBackgroundChange, isScreenFocused = true, vibrationEnabled = true }) {
   const [magnetometer, setMagnetometer] = useState(0);
   const [qiblaCoordinate, setQiblaCoordinate] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
   const [containerHeight, setContainerHeight] = useState(height);
+  // Full screen height including navbar
+  const fullScreenHeight = height;
   const subscriptionRef = useRef(null);
   const lastAngleRef = useRef(null);
   const previousRoundedAngleRef = useRef(null);
@@ -210,10 +214,10 @@ export default function QiblaCompass({ onBackgroundChange, isScreenFocused = tru
   const roundedAngle = Math.round(angleFromNorth);
 
   // Haptic feedback effect - light tick every degree, strong haptic when entering 5° zone
-  // Only trigger haptics when the screen is focused
+  // Only trigger haptics when the screen is focused and vibration is enabled
   useEffect(() => {
-    if (!isScreenFocused) {
-      // Update previous angle even when not focused to prevent haptics when returning
+    if (!isScreenFocused || !vibrationEnabled) {
+      // Update previous angle even when not focused or vibration disabled to prevent haptics when returning
       previousRoundedAngleRef.current = roundedAngle;
       return;
     }
@@ -239,7 +243,7 @@ export default function QiblaCompass({ onBackgroundChange, isScreenFocused = tru
 
     // Update previous angle
     previousRoundedAngleRef.current = currentAngle;
-  }, [roundedAngle, isScreenFocused]);
+  }, [roundedAngle, isScreenFocused, vibrationEnabled]);
 
   // Animate opacity changes when alignment status changes - separate from haptics
   useEffect(() => {
@@ -313,7 +317,7 @@ export default function QiblaCompass({ onBackgroundChange, isScreenFocused = tru
         <View style={[
           styles.compassWrapper,
           {
-            top: containerHeight / 2 - COMPASS_SIZE / 2,
+            top: fullScreenHeight / 2 - COMPASS_SIZE / 2,
             left: width / 2 - COMPASS_SIZE / 2,
           }
         ]}>
@@ -385,14 +389,36 @@ export default function QiblaCompass({ onBackgroundChange, isScreenFocused = tru
       <View style={[
         styles.textContainer,
         {
-          top: containerHeight / 2 + COMPASS_SIZE / 2 + SPACING.sm,
+          top: fullScreenHeight / 2 + COMPASS_SIZE / 2 + SPACING.sm,
         }
       ]}>
         {/* Distance from Qibla display */}
-        <Text style={styles.angleText}>{Math.round(angleFromNorth)}°</Text>
+        <View style={styles.angleContainer}>
+          <Text style={styles.angleText}>{Math.round(angleFromNorth)}</Text>
+          <Text style={styles.degreeSymbol}>°</Text>
+        </View>
 
         {/* Directional text */}
-        <Text style={styles.directionText}>{getDirectionText(rotateKaba)}</Text>
+        {(() => {
+          const directionText = getDirectionText(rotateKaba);
+          const words = directionText.split(' ');
+          const greyColor = 'rgba(255, 255, 255, 0.69)';
+          const whiteColor = COLORS.text.primary;
+          
+          return (
+            <Text style={styles.directionText}>
+              {words.map((word, index) => {
+                const lowerWord = word.toLowerCase();
+                const isHighlight = lowerWord.includes('left') || lowerWord.includes('right') || lowerWord.includes('qibla');
+                return (
+                  <Text key={index} style={{ color: isHighlight ? whiteColor : greyColor }}>
+                    {word}{index < words.length - 1 ? ' ' : ''}
+                  </Text>
+                );
+              })}
+            </Text>
+          );
+        })()}
       </View>
     </View>
   );
@@ -420,7 +446,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+    paddingLeft: SPACING.lg,
   },
   svg: {
     position: 'absolute',
@@ -434,16 +461,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  angleContainer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
   angleText: {
     fontFamily: FONTS.weights.bold.primary,
     fontSize: FONTS.sizes.xxl,
     color: COLORS.text.primary,
   },
+  degreeSymbol: {
+    fontFamily: FONTS.weights.bold.primary,
+    fontSize: FONTS.sizes.xxl,
+    color: 'rgba(255, 255, 255, 0.69)',
+  },
   directionText: {
     fontFamily: FONTS.weights.regular.primary,
-    fontSize: FONTS.sizes.lg,
-    color: 'rgba(255, 255, 255, 0.69)', // White with opacity instead of gray for visibility on green
-    marginTop: SPACING.sm,
+    fontSize: FONTS.sizes.xxl,
+    marginTop: SPACING.xs,
+    textAlign: 'left',
   },
   loadingText: {
     fontFamily: FONTS.weights.regular.primary,

@@ -5,6 +5,7 @@ import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -356,7 +357,7 @@ export default function App() {
   const isContentReady = fontsLoaded && !loading && minLoadingComplete;
   
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Main content - rendered behind loading screen when ready */}
       {isContentReady && (
@@ -503,6 +504,7 @@ export default function App() {
                           {...props}
                           qiblaBgOpacity={qiblaBgOpacity}
                           onBackgroundChange={handleQiblaBackgroundChange}
+                          locationName={locationName}
                         />
                       )}
                     </Tab.Screen>
@@ -551,7 +553,7 @@ export default function App() {
           <LoadingScreen />
         </View>
       )}
-    </>
+    </SafeAreaProvider>
   );
 }
 
