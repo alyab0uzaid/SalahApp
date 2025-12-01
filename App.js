@@ -382,6 +382,13 @@ export default function App() {
                   <Tab.Navigator
                     screenOptions={({ route }) => ({
                       headerShown: false,
+                      tabBarStyle: {
+                        backgroundColor: COLORS.background.primary,
+                        borderTopWidth: 0,
+                        paddingBottom: SPACING.xxxl,
+                        paddingTop: SPACING.sm,
+                        height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
+                      },
                       tabBarActiveTintColor: COLORS.text.primary,
                       tabBarInactiveTintColor: COLORS.text.faded,
                       tabBarShowLabel: false,
@@ -404,29 +411,27 @@ export default function App() {
                     tabBar={(props) => {
                       // Custom tab bar that animates background on Qibla screen
                       const { state, descriptors, navigation } = props;
-                      const currentRoute = state.routes[state.index];
-                      const isQiblaScreen = currentRoute.name === 'Qibla';
-
-                      const backgroundColor = qiblaBgOpacity.interpolate({
+                      const isQiblaScreen = state.routes[state.index]?.name === 'Qibla';
+                      
+                      // Interpolate background color for Qibla alignment
+                      const tabBarBackgroundColor = qiblaBgOpacity.interpolate({
                         inputRange: [0, 1],
                         outputRange: [COLORS.background.primary, 'rgb(49, 199, 86)'],
                       });
-
-                      const tabBarStyle = isQiblaScreen
-                        ? { backgroundColor }
-                        : { backgroundColor: COLORS.background.primary };
 
                       return (
                         <Animated.View
                           style={[
                             {
-                              flexDirection: 'row',
+                              backgroundColor: isQiblaScreen ? tabBarBackgroundColor : COLORS.background.primary,
                               borderTopWidth: 0,
                               paddingBottom: SPACING.xxxl,
                               paddingTop: SPACING.sm,
                               height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
-                            },
-                            tabBarStyle,
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              justifyContent: 'space-around',
+                            }
                           ]}
                         >
                           {state.routes.map((route, index) => {
@@ -498,7 +503,6 @@ export default function App() {
                           {...props}
                           qiblaBgOpacity={qiblaBgOpacity}
                           onBackgroundChange={handleQiblaBackgroundChange}
-                          locationName={locationName}
                         />
                       )}
                     </Tab.Screen>
@@ -513,6 +517,9 @@ export default function App() {
                   selectedPrayer={selectedPrayer}
                   notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
                   onNotificationToggle={handleNotificationToggle}
+                  selectedDate={selectedDate}
+                  prayerStatus={prayerStatus}
+                  onPrayerStatusUpdate={handlePrayerStatusUpdate}
                 />
 
                 <DatePickerBottomSheet
@@ -538,8 +545,8 @@ export default function App() {
           <LoadingScreen />
         </Animated.View>
       )}
-      {/* Show loading screen while content is not ready */}
-      {!isContentReady && (
+      {/* Show loading screen while content is not ready - only after fonts are loaded */}
+      {!isContentReady && fontsLoaded && (
         <View style={StyleSheet.absoluteFill}>
           <LoadingScreen />
         </View>
