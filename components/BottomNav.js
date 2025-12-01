@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable } from 'react-native';
+import { StyleSheet, Pressable, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, ICON_SIZES, SPACING } from '../constants/theme';
 
@@ -10,14 +10,23 @@ const TABS = [
   { key: 'settings', label: 'Settings', icon: 'cog-outline' },
 ];
 
-const BottomNav = ({ activeTab, onTabPress }) => {
-  // No background fill when on qibla tab
+const BottomNav = ({ activeTab, onTabPress, animatedBackgroundColor }) => {
   const isQiblaTab = activeTab === 'qibla';
-  
+
+  // Use animated background color if provided, otherwise use default
+  const containerStyle = isQiblaTab && animatedBackgroundColor
+    ? [styles.container, { backgroundColor: animatedBackgroundColor }]
+    : [styles.container, isQiblaTab && styles.containerNoBg];
+
   return (
-    <View style={[styles.container, isQiblaTab && styles.containerNoBg]}>
+    <Animated.View style={containerStyle}>
       {TABS.map((tab) => {
         const isActive = activeTab === tab.key;
+        // Use white with opacity for inactive icons on qibla tab for visibility on green
+        const iconColor = isActive
+          ? COLORS.text.primary
+          : (isQiblaTab ? 'rgba(255, 255, 255, 0.37)' : COLORS.text.faded);
+
         return (
           <Pressable
             key={tab.key}
@@ -31,12 +40,12 @@ const BottomNav = ({ activeTab, onTabPress }) => {
             <MaterialCommunityIcons
               name={tab.icon}
               size={ICON_SIZES.lg}
-              color={isActive ? COLORS.text.primary : COLORS.text.faded}
+              color={iconColor}
             />
           </Pressable>
         );
       })}
-    </View>
+    </Animated.View>
   );
 };
 

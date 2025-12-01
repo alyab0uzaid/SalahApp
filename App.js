@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Animated } from 'react-native';
+import { StyleSheet, View, Text, ActivityIndicator, Animated, Pressable } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -382,13 +382,6 @@ export default function App() {
                   <Tab.Navigator
                     screenOptions={({ route }) => ({
                       headerShown: false,
-                      tabBarStyle: {
-                        backgroundColor: COLORS.background.primary,
-                        borderTopWidth: 0,
-                        paddingBottom: SPACING.xxxl,
-                        paddingTop: SPACING.sm,
-                        height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
-                      },
                       tabBarActiveTintColor: COLORS.text.primary,
                       tabBarInactiveTintColor: COLORS.text.faded,
                       tabBarShowLabel: false,
@@ -408,6 +401,74 @@ export default function App() {
                         return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
                       },
                     })}
+                    tabBar={(props) => {
+                      // Custom tab bar that animates background on Qibla screen
+                      const { state, descriptors, navigation } = props;
+                      const currentRoute = state.routes[state.index];
+                      const isQiblaScreen = currentRoute.name === 'Qibla';
+
+                      const backgroundColor = qiblaBgOpacity.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [COLORS.background.primary, 'rgb(49, 199, 86)'],
+                      });
+
+                      const tabBarStyle = isQiblaScreen
+                        ? { backgroundColor }
+                        : { backgroundColor: COLORS.background.primary };
+
+                      return (
+                        <Animated.View
+                          style={[
+                            {
+                              flexDirection: 'row',
+                              borderTopWidth: 0,
+                              paddingBottom: SPACING.xxxl,
+                              paddingTop: SPACING.sm,
+                              height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
+                            },
+                            tabBarStyle,
+                          ]}
+                        >
+                          {state.routes.map((route, index) => {
+                            const { options } = descriptors[route.key];
+                            const isFocused = state.index === index;
+
+                            const onPress = () => {
+                              const event = navigation.emit({
+                                type: 'tabPress',
+                                target: route.key,
+                                canPreventDefault: true,
+                              });
+
+                              if (!isFocused && !event.defaultPrevented) {
+                                navigation.navigate(route.name);
+                              }
+                            };
+
+                            // Use white with opacity for inactive icons on Qibla screen
+                            const tintColor = isFocused
+                              ? COLORS.text.primary
+                              : isQiblaScreen
+                              ? 'rgba(255, 255, 255, 0.37)'
+                              : COLORS.text.faded;
+
+                            return (
+                              <Pressable
+                                key={route.key}
+                                onPress={onPress}
+                                style={{
+                                  flex: 1,
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {options.tabBarIcon?.({ color: tintColor, size: ICON_SIZES.lg })}
+                              </Pressable>
+                            );
+                          })}
+                        </Animated.View>
+                      );
+                    }}
                   >
                     <Tab.Screen name="Home">
                       {(props) => (
@@ -437,6 +498,7 @@ export default function App() {
                           {...props}
                           qiblaBgOpacity={qiblaBgOpacity}
                           onBackgroundChange={handleQiblaBackgroundChange}
+                          locationName={locationName}
                         />
                       )}
                     </Tab.Screen>

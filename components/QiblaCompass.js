@@ -7,11 +7,11 @@ import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 const COMPASS_SIZE = width * 0.95; // Increased from 0.8 to 0.95 for bigger compass
 
 // Fixed circle parameters
-const CIRCLE_RADIUS = COMPASS_SIZE * 0.35;
+const CIRCLE_RADIUS = COMPASS_SIZE * 0.42; // Increased from 0.35 to 0.42 for more space around arrow
 const CIRCLE_CENTER_X = COMPASS_SIZE / 2;
 const CIRCLE_CENTER_Y = COMPASS_SIZE / 2;
 
@@ -20,7 +20,7 @@ const TOP_DOT_X = CIRCLE_CENTER_X;
 const TOP_DOT_Y = CIRCLE_CENTER_Y - CIRCLE_RADIUS;
 
 // Alignment threshold
-const ALIGNMENT_THRESHOLD = 15;
+const ALIGNMENT_THRESHOLD = 25;
 
 // Calculate the direction to Qibla from current geographic location
 const calculateQibla = (latitude, longitude) => {
@@ -36,6 +36,36 @@ const calculateQibla = (latitude, longitude) => {
       Math.cos(phi) * Math.tan(latk) - Math.sin(phi) * Math.cos(longk - lambda)
     )
   );
+};
+
+// Get directional text based on the rotation angle
+// rotateKaba tells us where the Qibla arrow is pointing relative to phone's top
+const getDirectionText = (rotateKaba) => {
+  // Normalize angle to 0-360 range
+  let normalizedAngle = rotateKaba % 360;
+  if (normalizedAngle < 0) normalizedAngle += 360;
+
+  // When arrow points up (0°), you're facing Qibla
+  // Calculate shortest angle from 0° (north)
+  const angleFromNorth = normalizedAngle > 180
+    ? 360 - normalizedAngle
+    : normalizedAngle;
+
+  if (angleFromNorth < 5) {
+    return 'Facing the Qibla';
+  } else if (normalizedAngle > 0 && normalizedAngle < 45) {
+    return 'Slightly to your right';
+  } else if (normalizedAngle >= 45 && normalizedAngle < 135) {
+    return 'To your right';
+  } else if (normalizedAngle >= 135 && normalizedAngle < 225) {
+    return 'Behind you';
+  } else if (normalizedAngle >= 225 && normalizedAngle < 315) {
+    return 'To your left';
+  } else if (normalizedAngle >= 315 && normalizedAngle < 360) {
+    return 'Slightly to your left';
+  } else {
+    return 'Facing the Qibla';
+  }
 };
 
 // Calculate angle from magnetometer data with small threshold to reduce jitter
@@ -62,16 +92,16 @@ const calculateAngle = (magnetometerValue, lastAngle, threshold = 0.3) => {
   return transformedAngle;
 };
 
-export default function QiblaCompass({ onBackgroundChange }) {
+export default function QiblaCompass({ onBackgroundChange, isScreenFocused = true }) {
   const [magnetometer, setMagnetometer] = useState(0);
   const [qiblaCoordinate, setQiblaCoordinate] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [containerHeight, setContainerHeight] = useState(height);
   const subscriptionRef = useRef(null);
   const lastAngleRef = useRef(null);
-  const wasAlignedRef = useRef(false);
-  const previousAngleRef = useRef(null);
-  const wasAtZeroRef = useRef(false);
+  const previousRoundedAngleRef = useRef(null);
+  const hasTriggeredAlignmentHapticRef = useRef(false);
   
   // Calculate rotateKaba (angle to rotate arrow to point to Qibla)
   const rotateKaba = magnetometer - qiblaCoordinate;
@@ -146,14 +176,14 @@ export default function QiblaCompass({ onBackgroundChange }) {
   // Calculate angles from circle center for both dots
   const topAngle = Math.atan2(TOP_DOT_Y - CIRCLE_CENTER_Y, TOP_DOT_X - CIRCLE_CENTER_X);
   const arrowAngle = Math.atan2(arrowEndY - CIRCLE_CENTER_Y, arrowEndX - CIRCLE_CENTER_X);
-  
+
   // Calculate the angle difference, always choosing the shorter path
   let angleDiff = arrowAngle - topAngle;
-  
+
   // Normalize to [-π, π] range
   if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
   if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
-  
+
   // Determine arc flags - use shorter arc with leeway (flip at ~200° instead of 180°)
   const flipThreshold = (200 * Math.PI) / 180; // 200 degrees in radians
   const largeArcFlag = Math.abs(angleDiff) > flipThreshold ? 1 : 0;
@@ -179,67 +209,43 @@ export default function QiblaCompass({ onBackgroundChange }) {
   // Round angle to nearest degree for haptic feedback
   const roundedAngle = Math.round(angleFromNorth);
 
-  // Separate haptic feedback effect - doesn't interfere with animations
+  // Haptic feedback effect - light tick every degree, strong haptic when entering 5° zone
+  // Only trigger haptics when the screen is focused
   useEffect(() => {
-    if (isNearAlignment) {
-      const prevAngle = previousAngleRef.current;
-      const currentAngle = roundedAngle;
-      
-      // Check if we just entered the alignment zone
-      if (!wasAlignedRef.current) {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }
-      
-      // Pulse every degree when within threshold (only when getting closer)
-      if (prevAngle !== null && prevAngle !== currentAngle && currentAngle < ALIGNMENT_THRESHOLD) {
-        // Check if we're at 0° and moving away (triple pulse)
-        if (wasAtZeroRef.current && currentAngle > 0) {
-          // Triple pulse when moving off 0° - all Heavy
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          setTimeout(() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            setTimeout(() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            }, 100);
-          }, 100);
-          wasAtZeroRef.current = false;
-        } else if (currentAngle === 0 && prevAngle !== 0) {
-          // Just reached 0° - double pulse (Heavy)
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          setTimeout(() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-          }, 100);
-          wasAtZeroRef.current = true;
-        } else if (currentAngle < prevAngle) {
-          // Pulse strength increases as you get closer to 0°
-          let hapticStyle;
-          if (currentAngle >= 10) {
-            hapticStyle = Haptics.ImpactFeedbackStyle.Medium;
-          } else if (currentAngle >= 5) {
-            hapticStyle = Haptics.ImpactFeedbackStyle.Heavy;
-          } else {
-            hapticStyle = Haptics.ImpactFeedbackStyle.Heavy;
-          }
-          Haptics.impactAsync(hapticStyle);
-        }
-      }
-      
-      // Update tracking refs
-      previousAngleRef.current = currentAngle;
-      wasAlignedRef.current = true;
-    } else {
-      // Reset tracking when outside alignment zone
-      wasAlignedRef.current = false;
-      previousAngleRef.current = null;
-      wasAtZeroRef.current = false;
+    if (!isScreenFocused) {
+      // Update previous angle even when not focused to prevent haptics when returning
+      previousRoundedAngleRef.current = roundedAngle;
+      return;
     }
-  }, [isNearAlignment, roundedAngle]);
+
+    const prevAngle = previousRoundedAngleRef.current;
+    const currentAngle = roundedAngle;
+
+    // Check if we just entered the 5° alignment zone
+    if (currentAngle < 5 && prevAngle !== null && prevAngle >= 5) {
+      // Maximum strength haptic when entering alignment zone
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      hasTriggeredAlignmentHapticRef.current = true;
+    }
+    // Light tick for every degree change when outside 5° zone
+    else if (prevAngle !== null && prevAngle !== currentAngle && currentAngle >= 5) {
+      // Selection haptic - weaker than Light impact
+      Haptics.selectionAsync();
+    }
+    // Reset the alignment haptic flag when leaving the 5° zone
+    else if (currentAngle >= 5 && prevAngle !== null && prevAngle < 5) {
+      hasTriggeredAlignmentHapticRef.current = false;
+    }
+
+    // Update previous angle
+    previousRoundedAngleRef.current = currentAngle;
+  }, [roundedAngle, isScreenFocused]);
 
   // Animate opacity changes when alignment status changes - separate from haptics
   useEffect(() => {
     Animated.timing(arcOpacity, {
       toValue: isNearAlignment ? 0 : 1,
-      duration: 300,
+      duration: 150,
       useNativeDriver: true,
     }).start();
 
@@ -295,82 +301,99 @@ export default function QiblaCompass({ onBackgroundChange }) {
     );
   }
 
+  const handleContainerLayout = (event) => {
+    const { height: containerH } = event.nativeEvent.layout;
+    setContainerHeight(containerH);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Qibla Direction</Text>
-
-      {/* Compass with fixed circle and dynamic arc */}
-      <View style={styles.compassWrapper}>
-        <Animated.View style={{ opacity: arcOpacity }}>
-          <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} style={styles.svg}>
-            {/* Dynamic arc - fades out near alignment */}
-            <Path
-              d={arcPath}
-              fill="none"
-              stroke="rgba(255, 255, 255, 0.3)"
-              strokeWidth="10"
-              strokeLinecap="round"
-            />
-
-            {/* Top dot - fades out near alignment */}
-            <Circle
-              cx={TOP_DOT_X}
-              cy={TOP_DOT_Y}
-              r={18}
-              fill="#FFFFFF"
-            />
-            {/* Top dot border ring - animates to green when aligned */}
-            <Circle
-              cx={TOP_DOT_X}
-              cy={TOP_DOT_Y}
-              r={18}
-              fill="none"
-              stroke={borderColor}
-              strokeWidth="6"
-            />
-          </Svg>
-        </Animated.View>
-
-        <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} style={styles.svg}>
-          {/* Arrow end dot - always visible */}
-          <Circle
-            cx={arrowEndX}
-            cy={arrowEndY}
-            r={18}
-            fill="#FFFFFF"
-          />
-          {/* Arrow end dot border ring - animates to green when aligned */}
-          <Circle
-            cx={arrowEndX}
-            cy={arrowEndY}
-            r={18}
-            fill="none"
-            stroke={borderColor}
-            strokeWidth="6"
-          />
-        </Svg>
-
-        {/* Rotating arrow from circle center - always white */}
+    <View style={styles.container} onLayout={handleContainerLayout}>
+      {/* Compass centered independently */}
+      <View style={styles.compassContainer}>
         <View style={[
-          styles.arrowContainer,
+          styles.compassWrapper,
           {
-            transform: [
-              { translateX: -(CIRCLE_RADIUS * 2.2) / 2 },
-              { translateY: -(CIRCLE_RADIUS * 2.2) / 2 },
-              { rotate: `${rotateKaba}deg` }
-            ]
+            top: containerHeight / 2 - COMPASS_SIZE / 2,
+            left: width / 2 - COMPASS_SIZE / 2,
           }
         ]}>
-          <MaterialCommunityIcons
-            name="arrow-up"
-            size={CIRCLE_RADIUS * 2.2}
-            color="#FFFFFF"
-          />
+          <Animated.View style={{ opacity: arcOpacity }}>
+            <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} style={styles.svg}>
+              {/* Top dot - fades out near alignment */}
+              <Circle
+                cx={TOP_DOT_X}
+                cy={TOP_DOT_Y}
+                r={15}
+                fill="#FFFFFF"
+              />
+            </Svg>
+          </Animated.View>
+
+          <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} style={styles.svg}>
+            {/* Arrow end dot - always visible */}
+            <Circle
+              cx={arrowEndX}
+              cy={arrowEndY}
+              r={15}
+              fill="#FFFFFF"
+            />
+          </Svg>
+
+          <Animated.View style={{ opacity: arcOpacity }}>
+            <Svg width={COMPASS_SIZE} height={COMPASS_SIZE} style={styles.svg}>
+              {/* Invisible arc for math/layout - keeps original behavior */}
+              <Path
+                d={arcPath}
+                fill="none"
+                stroke="transparent"
+                strokeWidth="20"
+              />
+              {/* Visible shortened arc - rendered on top with gaps on both ends */}
+              <Path
+                d={arcPath}
+                fill="none"
+                stroke="rgba(255, 255, 255, 0.3)"
+                strokeWidth="20"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray={`0 35 ${Math.max(0, CIRCLE_RADIUS * Math.abs(angleDiff) - 70)} 35`}
+              />
+            </Svg>
+          </Animated.View>
+
+          {/* Rotating arrow from circle center - always white */}
+          <View style={[
+            styles.arrowContainer,
+            {
+              transform: [
+                { translateX: -(CIRCLE_RADIUS * 1.8) / 2 },
+                { translateY: -(CIRCLE_RADIUS * 1.8) / 2 },
+                { rotate: `${rotateKaba}deg` }
+              ]
+            }
+          ]}>
+            <MaterialCommunityIcons
+              name="arrow-up"
+              size={CIRCLE_RADIUS * 1.8}
+              color="#FFFFFF"
+            />
+          </View>
         </View>
       </View>
 
-      {/* Distance from Qibla display */}
-      <Text style={styles.angleText}>{Math.round(angleFromNorth)}°</Text>
+      {/* Text elements positioned right below compass */}
+      <View style={[
+        styles.textContainer,
+        {
+          top: containerHeight / 2 + COMPASS_SIZE / 2 + SPACING.sm,
+        }
+      ]}>
+        {/* Distance from Qibla display */}
+        <Text style={styles.angleText}>{Math.round(angleFromNorth)}°</Text>
+
+        {/* Directional text */}
+        <Text style={styles.directionText}>{getDirectionText(rotateKaba)}</Text>
+      </View>
     </View>
   );
 }
@@ -382,17 +405,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontFamily: FONTS.weights.bold.primary,
-    fontSize: FONTS.sizes.xl,
-    color: COLORS.text.primary,
-    marginBottom: SPACING.xxl * 2,
+  compassContainer: {
+    flex: 1,
+    width: '100%',
+    position: 'relative',
   },
   compassWrapper: {
     width: COMPASS_SIZE,
     height: COMPASS_SIZE,
-    marginBottom: SPACING.xl,
-    position: 'relative',
+    position: 'absolute',
+  },
+  textContainer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    width: '100%',
+    alignItems: 'center',
   },
   svg: {
     position: 'absolute',
@@ -410,6 +438,12 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.weights.bold.primary,
     fontSize: FONTS.sizes.xxl,
     color: COLORS.text.primary,
+  },
+  directionText: {
+    fontFamily: FONTS.weights.regular.primary,
+    fontSize: FONTS.sizes.lg,
+    color: 'rgba(255, 255, 255, 0.69)', // White with opacity instead of gray for visibility on green
+    marginTop: SPACING.sm,
   },
   loadingText: {
     fontFamily: FONTS.weights.regular.primary,

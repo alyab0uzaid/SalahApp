@@ -1,10 +1,12 @@
 import React from 'react';
 import { StyleSheet } from 'react-native';
 import { Animated } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import QiblaCompass from '../components/QiblaCompass';
 import { COLORS } from '../constants/theme';
 
-export default function QiblaScreen({ qiblaBgOpacity, onBackgroundChange }) {
+export default function QiblaScreen({ qiblaBgOpacity, onBackgroundChange, locationName }) {
+  const isFocused = useIsFocused();
   const backgroundColor = qiblaBgOpacity.interpolate({
     inputRange: [0, 1],
     outputRange: [COLORS.background.primary, 'rgb(49, 199, 86)'],
@@ -12,7 +14,7 @@ export default function QiblaScreen({ qiblaBgOpacity, onBackgroundChange }) {
 
   return (
     <Animated.View style={[styles.container, { backgroundColor }]}>
-      <QiblaCompass onBackgroundChange={onBackgroundChange} />
+      <QiblaCompass onBackgroundChange={onBackgroundChange} locationName={locationName} isScreenFocused={isFocused} />
     </Animated.View>
   );
 }
