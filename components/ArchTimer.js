@@ -452,30 +452,46 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           const point = currentPoint;
           return (
             <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
-              {/* Glow layers - multiple blurred circles for glow effect */}
+              {/* Glow layers - multiple blurred circles for enhanced glow effect */}
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={10}
+                r={12}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur1)"
-                opacity={0.8}
+                opacity={1.0}
               />
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={10}
+                r={12}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur2)"
-                opacity={0.6}
+                opacity={0.9}
               />
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={10}
+                r={12}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur3)"
-                opacity={0.4}
+                opacity={0.7}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={12}
+                fill={COLORS.accent.white}
+                filter="url(#glowBlur4)"
+                opacity={0.5}
+              />
+              <Circle
+                cx={point.x}
+                cy={point.y}
+                r={12}
+                fill={COLORS.accent.white}
+                filter="url(#glowBlur5)"
+                opacity={0.3}
               />
               {/* Main circle on top */}
               <Circle

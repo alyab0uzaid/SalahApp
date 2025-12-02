@@ -1,17 +1,16 @@
 import React, { useState, memo, useRef, useEffect } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, Animated, Pressable } from 'react-native';
+import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Swipeable } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
-const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress, notifications = {}, onSwipeToConfirm }) => {
+const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerStatusUpdate, prayerStatus, onPrayerPress, notifications = {} }) => {
   // Local state to track prayer status for immediate UI updates
   const [localPrayerStatus, setLocalPrayerStatus] = useState({});
 
   // Track which prayer is currently being pressed (for immediate tap feedback)
   const [pressedPrayer, setPressedPrayer] = useState(null);
-
 
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
@@ -41,102 +40,79 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
   // Get prayer status for current date - check both local and parent state
   const getPrayerStatusForDate = (prayerName) => {
     const dateKey = getDateKey();
+    if (!dateKey) return null;
     
-    // First check local state for immediate updates
-    if (localPrayerStatus[dateKey] && localPrayerStatus[dateKey][prayerName]) {
-      return localPrayerStatus[dateKey][prayerName];
+    // First check local state for immediate updates (including null values for removals)
+    if (localPrayerStatus[dateKey] && prayerName in localPrayerStatus[dateKey]) {
+      return localPrayerStatus[dateKey][prayerName] || null;
     }
     
     // Then check parent state
-    if (dateKey && prayerStatus && prayerStatus[dateKey]) {
+    if (prayerStatus && prayerStatus[dateKey]) {
       return prayerStatus[dateKey][prayerName] || null;
     }
     
     return null;
   };
 
-  // Right swipe action - "On Time" or "Remove" (green/grey background with opacity based on swipe progress)
-  const renderRightActions = (progress, prayerName) => {
-    const opacity = progress.interpolate({
-      inputRange: [0, 0.15, 1],
-      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
-    });
+  // Handle tap to cycle through status: none -> on-time -> late -> none
+  const handlePrayerTap = (prayerName) => {
+    const dateKey = getDateKey();
+    if (!dateKey || !onPrayerStatusUpdate) return;
 
     const currentStatus = getPrayerStatusForDate(prayerName);
-    const isRemoving = currentStatus === 'on-time';
-    const backgroundColor = isRemoving ? '#C0C0C0' : '#81C784';
-    const iconName = isRemoving ? 'close-circle' : 'check-circle';
+    let newStatus;
 
-    return (
-      <Animated.View style={[styles.rightAction, { opacity, backgroundColor }]}>
-        <MaterialCommunityIcons name={iconName} size={24} color="#fff" />
-      </Animated.View>
-    );
-  };
+    // Cycle: none -> on-time -> late -> none
+    if (!currentStatus) {
+      newStatus = 'on-time';
+    } else if (currentStatus === 'on-time') {
+      newStatus = 'late';
+    } else {
+      newStatus = null; // Remove status
+    }
 
-  // Left swipe action - "Late" or "Remove" (orange/grey background with opacity based on swipe progress)
-  const renderLeftActions = (progress, prayerName) => {
-    const opacity = progress.interpolate({
-      inputRange: [0, 0.15, 1],
-      outputRange: [0.3, 1, 1], // Reach full opacity at 15% swipe
+    // Update local state immediately for UI feedback
+    // Use a function that explicitly handles null values (for removals)
+    setLocalPrayerStatus(prev => {
+      const updated = {
+        ...prev,
+        [dateKey]: {
+          ...(prev[dateKey] || {}),
+        },
+      };
+      
+      if (newStatus === null) {
+        // Remove the key if status is null
+        const { [prayerName]: _, ...rest } = updated[dateKey];
+        updated[dateKey] = rest;
+        // If date has no prayers, remove the date key
+        if (Object.keys(updated[dateKey]).length === 0) {
+          const { [dateKey]: __, ...restDates } = updated;
+          return restDates;
+        }
+      } else {
+        updated[dateKey][prayerName] = newStatus;
+      }
+      
+      return updated;
     });
 
-    const currentStatus = getPrayerStatusForDate(prayerName);
-    const isRemoving = currentStatus === 'late';
-    const backgroundColor = isRemoving ? '#C0C0C0' : '#FF9A76';
-    const iconName = isRemoving ? 'close-circle' : 'clock-alert';
-
-    return (
-      <Animated.View style={[styles.leftAction, { opacity, backgroundColor }]}>
-        <MaterialCommunityIcons name={iconName} size={24} color="#fff" />
-      </Animated.View>
-    );
-  };
-  
-  // Create wrapper functions - pass prayer name to render functions
-  const createRightActionsRenderer = (prayerName) => {
-    return (progress, dragX) => {
-      return renderRightActions(progress, prayerName);
-    };
-  };
-  
-  const createLeftActionsRenderer = (prayerName) => {
-    return (progress, dragX) => {
-      return renderLeftActions(progress, prayerName);
-    };
+    // Update parent state - function expects (prayerName, status)
+    onPrayerStatusUpdate(prayerName, newStatus);
   };
 
-  // Refs to control swipeable components
-  const swipeableRefs = useRef({});
-  
-  // Track swipe state to detect when user releases
-  const swipeStateRef = useRef({});
-  
-  // Track if a swipe is currently happening (to prevent tap feedback during swipes)
-  const isSwipingRef = useRef({});
-  
   // Sync local state with parent state when date changes or parent state updates
   useEffect(() => {
     if (!selectedDate) return;
     const dateKey = selectedDate.toISOString().split('T')[0];
 
-    // Always sync with parent state - either update or clear
+    // Sync with parent state - parent state is the source of truth
     setLocalPrayerStatus(prev => ({
       ...prev,
       [dateKey]: prayerStatus?.[dateKey] || {},
     }));
   }, [selectedDate, prayerStatus]);
-
-  // Handle swipe completion - open confirmation bottom sheet
-  const handleSwipeComplete = (prayerName, direction) => {
-    // Find the prayer time
-    const prayerIndex = prayerNames.indexOf(prayerName);
-    const prayerTime = prayerIndex >= 0 ? prayerTimes[prayerIndex] : '';
-
-    if (onSwipeToConfirm) {
-      onSwipeToConfirm(prayerName, prayerTime, direction);
-    }
-  };
 
   // Determine which prayer is current and which are past (only if viewing today)
   const getPrayerStatus = (index) => {
@@ -177,143 +153,64 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
     <View style={[styles.prayerList, style]}>
       {prayerNames.map((name, index) => {
         const time = prayerTimes[index];
-
-        const iconName = (() => {
-          switch (name.toLowerCase()) {
-            case 'fajr':
-              return 'weather-night';
-            case 'sunrise':
-              return 'weather-sunset-up';
-            case 'dhuhr':
-              return 'white-balance-sunny';
-            case 'asr':
-              return 'weather-sunset';
-            case 'maghrib':
-              return 'weather-sunset-down';
-            case 'isha':
-              return 'moon-waning-crescent';
-            default:
-              return 'clock-outline';
-          }
-        })();
+        const isSunrise = name.toLowerCase() === 'sunrise';
+        
+        // Skip sunrise
+        if (isSunrise) {
+          return null;
+        }
 
         const { isPast, isCurrent } = getPrayerStatus(index);
-        const hasNotification = notifications[name];
         const prayerStatusValue = getPrayerStatusForDate(name);
-        const isSunrise = name.toLowerCase() === 'sunrise';
 
-        const prayerRowContent = (
+        return (
           <Pressable
+            key={name}
             style={[
               styles.prayerRow,
-              pressedPrayer === name && !isSwipingRef.current[name] && styles.prayerRowPressed
+              pressedPrayer === name && styles.prayerRowPressed
             ]}
             onPress={() => {
-              if (!isSwipingRef.current[name]) {
-                // Show color change on release
-                setPressedPrayer(name);
-                // Clear it after a brief moment
-                setTimeout(() => {
-                  setPressedPrayer(null);
-                }, 150);
-              }
-              if (onPrayerPress && !isSunrise) {
-                onPrayerPress({ name, time, index });
-              }
+              // Haptic feedback
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              
+              // Show color change on release
+              setPressedPrayer(name);
+              // Clear it after a brief moment
+              setTimeout(() => {
+                setPressedPrayer(null);
+              }, 150);
+
+              // Handle status cycling for prayers
+              handlePrayerTap(name);
             }}
           >
             <View style={styles.prayerRowContent}>
               <View style={styles.prayerInfo}>
-                <Text style={[
-                  styles.prayerName,
-                  isPast && styles.prayerNamePast,
-                  isCurrent && styles.prayerNameActive
-                ]}>
+                {/* Status indicator circle on the left */}
+                <View style={styles.statusIndicator}>
+                  {prayerStatusValue === 'on-time' && (
+                    <MaterialCommunityIcons
+                      name="check"
+                      size={16}
+                      color={COLORS.text.primary}
+                    />
+                  )}
+                  {prayerStatusValue === 'late' && (
+                    <View style={styles.lateDot} />
+                  )}
+                </View>
+                <Text style={styles.prayerName}>
                   {name}
                 </Text>
-                {prayerStatusValue && (
-                  <View style={[
-                    styles.statusBadge,
-                    prayerStatusValue === 'on-time' ? styles.statusBadgeOnTime : styles.statusBadgeLate
-                  ]} />
-                )}
               </View>
-              <View style={styles.timeAndBell}>
-                <Text style={[
-                  styles.prayerTimeText,
-                  isPast && styles.prayerTimeTextPast,
-                  isCurrent && styles.prayerTimeTextActive
-                ]}>
+              <View style={styles.timeContainer}>
+                <Text style={styles.prayerTimeText}>
                   {time}
                 </Text>
-                <View style={styles.bellIcon}>
-                  <MaterialCommunityIcons
-                    name={hasNotification ? 'bell' : 'bell-off-outline'}
-                    size={18}
-                    color={COLORS.text.tertiary}
-                  />
-                </View>
               </View>
             </View>
           </Pressable>
-        );
-
-        // Sunrise is not a prayer, so it shouldn't be swipeable
-        if (isSunrise) {
-          return (
-            <View key={name} style={styles.swipeableContainer}>
-              {prayerRowContent}
-            </View>
-          );
-        }
-
-        // Regular prayers are swipeable
-        return (
-          <Swipeable
-            key={name}
-            ref={(ref) => {
-              if (ref) {
-                swipeableRefs.current[name] = ref;
-              }
-            }}
-            renderRightActions={createRightActionsRenderer(name)}
-            renderLeftActions={createLeftActionsRenderer(name)}
-            onSwipeableWillOpen={(direction) => {
-              // Mark that we're swiping to prevent tap feedback
-              isSwipingRef.current[name] = true;
-              // Track direction when threshold is reached
-              swipeStateRef.current[name] = {
-                direction: direction,
-                hasSwiped: true
-              };
-            }}
-            onSwipeableClose={(direction) => {
-              // Mark that we're no longer swiping
-              isSwipingRef.current[name] = false;
-
-              // Get the direction from tracked state (more reliable than close direction)
-              const swipeState = swipeStateRef.current[name];
-              const finalDirection = (swipeState && swipeState.direction) || direction;
-
-              // Clear state
-              if (swipeStateRef.current[name]) {
-                delete swipeStateRef.current[name];
-              }
-
-              // Only handle if we have a valid direction
-              if (finalDirection) {
-                handleSwipeComplete(name, finalDirection);
-              }
-            }}
-            overshootRight={false}
-            overshootLeft={false}
-            friction={2}
-            rightThreshold={1000}
-            leftThreshold={1000}
-            containerStyle={styles.swipeableContainer}
-          >
-            {prayerRowContent}
-          </Swipeable>
         );
       })}
     </View>
@@ -330,19 +227,15 @@ const styles = StyleSheet.create({
     marginTop: 0, // Spacing handled by wrapper in App.js
     alignSelf: 'center',
   },
-  swipeableContainer: {
-    borderRadius: RADIUS.md, // Rounded corners for swipeable container
-    marginBottom: SPACING.sm + 2, // Spacing between prayers
-    overflow: 'hidden', // Clip everything to rounded corners
-  },
   prayerRow: {
     paddingVertical: SPACING.sm + 2,
     paddingLeft: SPACING.md + 4,
     paddingRight: SPACING.md + 4,
     backgroundColor: COLORS.background.secondary,
-    borderRadius: RADIUS.md, // Prayer row has rounded corners
+    borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    marginBottom: SPACING.sm + 2,
   },
   prayerRowPressed: {
     backgroundColor: '#0F0E10', // Darker than secondary, no blue tint
@@ -357,65 +250,35 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flex: 1,
   },
+  statusIndicator: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginRight: SPACING.md,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lateDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.text.primary,
+  },
   prayerName: {
-    color: COLORS.text.secondary,
+    color: COLORS.text.primary,
     fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
   },
-  prayerNamePast: {
-    color: COLORS.text.disabled,
-    opacity: 0.5,
-  },
-  prayerNameActive: {
-    color: COLORS.text.primary,
-    fontFamily: FONTS.weights.medium.primary,
-  },
-  timeAndBell: {
+  timeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   prayerTimeText: {
-    color: COLORS.text.tertiary,
+    color: COLORS.text.primary,
     fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
-  },
-  prayerTimeTextPast: {
-    color: COLORS.text.disabled,
-    opacity: 0.5,
-  },
-  prayerTimeTextActive: {
-    color: COLORS.text.primary,
-    fontFamily: FONTS.weights.medium.primary,
-  },
-  bellIcon: {
-    marginLeft: SPACING.md,
-  },
-  // Swipe action styles - icons positioned near edges
-  rightAction: {
-    // backgroundColor is set dynamically based on remove/add state
-    justifyContent: 'center',
-    alignItems: 'flex-end', // Align to right edge
-    paddingRight: 16, // 16px from edge
-    flex: 1, // Take full available width
-  },
-  leftAction: {
-    // backgroundColor is set dynamically based on remove/add state
-    justifyContent: 'center',
-    alignItems: 'flex-start', // Align to left edge
-    paddingLeft: 16, // 16px from edge
-    flex: 1, // Take full available width
-  },
-  statusBadge: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: SPACING.sm,
-  },
-  statusBadgeOnTime: {
-    backgroundColor: '#81C784', // Softer muted green for on-time
-  },
-  statusBadgeLate: {
-    backgroundColor: '#FF9A76', // More orange-leaning coral for late
   },
 });
 

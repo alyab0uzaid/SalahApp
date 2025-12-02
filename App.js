@@ -510,7 +510,21 @@ export default function App() {
                     </Tab.Screen>
                     <Tab.Screen name="Tracker">
                       {(props) => (
-                        <TrackerScreen {...props} prayerStatus={prayerStatus} />
+                        <TrackerScreen
+                          {...props}
+                          prayerStatus={prayerStatus}
+                          prayerTimes={prayerTimes}
+                          prayerNames={prayerNames}
+                          currentTime={currentTime}
+                          selectedDate={selectedDate}
+                          setSelectedDate={setSelectedDate}
+                          handlePrayerStatusUpdate={handlePrayerStatusUpdate}
+                          handlePrayerPress={handlePrayerPress}
+                          notifications={notifications}
+                          handleSwipeToConfirm={handleSwipeToConfirm}
+                          handleDatePickerPress={handleDatePickerPress}
+                          locationName={locationName}
+                        />
                       )}
                     </Tab.Screen>
                     <Tab.Screen name="Settings" component={SettingsScreen} />

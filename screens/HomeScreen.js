@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { ScrollView, StyleSheet, Platform, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArchTimer from '../components/ArchTimer';
-import PrayerList from '../components/PrayerList';
+import SimplePrayerList from '../components/SimplePrayerList';
 import LocationTag from '../components/LocationTag';
 import DatePicker from '../components/DatePicker';
 import { COLORS, SPACING } from '../constants/theme';
@@ -88,17 +88,15 @@ export default function HomeScreen({
         onDatePress={handleDatePickerPress}
         style={styles.datePicker}
       />
-      <PrayerList
+      <SimplePrayerList
         prayerTimes={prayerTimes}
         prayerNames={prayerNames}
         currentTime={currentTime}
         style={styles.prayerList}
         selectedDate={selectedDate}
-        onPrayerStatusUpdate={handlePrayerStatusUpdate}
         prayerStatus={prayerStatus}
         onPrayerPress={handlePrayerPress}
         notifications={notifications}
-        onSwipeToConfirm={handleSwipeToConfirm}
       />
       </ScrollView>
     </View>
