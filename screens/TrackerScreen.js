@@ -1,36 +1,34 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import PrayerHeatmap from '../components/PrayerHeatmap';
+import PrayerTrend from '../components/PrayerTrend';
+import { COLORS, SPACING } from '../constants/theme';
 
-export default function TrackerScreen() {
+export default function TrackerScreen({ prayerStatus }) {
   const insets = useSafeAreaInsets();
   
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Text style={styles.title}>Tracker</Text>
-      <Text style={styles.text}>Coming Soon</Text>
-    </View>
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.lg }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <PrayerTrend prayerStatus={prayerStatus} />
+      <PrayerHeatmap prayerStatus={prayerStatus} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  scroll: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%',
     backgroundColor: COLORS.background.primary,
-    paddingHorizontal: SPACING.lg,
   },
-  title: {
-    color: COLORS.text.primary,
-    fontSize: FONTS.sizes.xxl,
-    fontFamily: FONTS.weights.medium.primary,
-    marginBottom: SPACING.md,
-  },
-  text: {
-    color: COLORS.text.tertiary,
-    fontSize: FONTS.sizes.lg,
-    fontFamily: FONTS.weights.regular.primary,
+  content: {
+    alignItems: 'center',
+    width: '100%',
+    paddingBottom: SPACING.lg,
   },
 });

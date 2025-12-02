@@ -224,11 +224,6 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
           >
             <View style={styles.prayerRowContent}>
               <View style={styles.prayerInfo}>
-                <MaterialCommunityIcons
-                  name={iconName}
-                  size={22}
-                  color={isPast ? COLORS.text.disabled : isCurrent ? COLORS.text.primary : COLORS.text.secondary}
-                />
                 <Text style={[
                   styles.prayerName,
                   isPast && styles.prayerNamePast,
@@ -337,13 +332,13 @@ const styles = StyleSheet.create({
   },
   swipeableContainer: {
     borderRadius: RADIUS.md, // Rounded corners for swipeable container
-    marginBottom: SPACING.sm, // Spacing between prayers
+    marginBottom: SPACING.sm + 2, // Spacing between prayers
     overflow: 'hidden', // Clip everything to rounded corners
   },
   prayerRow: {
-    paddingVertical: SPACING.sm,
-    paddingLeft: SPACING.md,
-    paddingRight: SPACING.md,
+    paddingVertical: SPACING.sm + 2,
+    paddingLeft: SPACING.md + 4,
+    paddingRight: SPACING.md + 4,
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md, // Prayer row has rounded corners
     borderWidth: 1,
@@ -366,7 +361,6 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
-    marginLeft: SPACING.md,
   },
   prayerNamePast: {
     color: COLORS.text.disabled,

@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
   },
   countdown: {
     color: COLORS.text.primary,
-    fontSize: FONTS.sizes.xxl,
+    fontSize: FONTS.sizes.xxl + 8, // 56px instead of 48px
     fontFamily: FONTS.weights.medium.primary,
     letterSpacing: 2,
     marginBottom: -8,

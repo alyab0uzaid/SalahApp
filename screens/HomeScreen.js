@@ -1,10 +1,8 @@
 import React, { useRef } from 'react';
-import { ScrollView, StyleSheet, Platform, Dimensions } from 'react-native';
+import { ScrollView, StyleSheet, Platform, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArchTimer from '../components/ArchTimer';
 import PrayerList from '../components/PrayerList';
-import PrayerHeatmap from '../components/PrayerHeatmap';
-import PrayerTrend from '../components/PrayerTrend';
 import LocationTag from '../components/LocationTag';
 import DatePicker from '../components/DatePicker';
 import { COLORS, SPACING } from '../constants/theme';
@@ -30,13 +28,14 @@ export default function HomeScreen({
   const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + SPACING.lg }]}
-      showsVerticalScrollIndicator={false}
-      clipsToBounds={false}
-    >
-      <LocationTag
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
+        showsVerticalScrollIndicator={false}
+        clipsToBounds={false}
+      >
+        <LocationTag
         locationName={locationName}
         style={styles.locationTag}
       />
@@ -101,13 +100,16 @@ export default function HomeScreen({
         notifications={notifications}
         onSwipeToConfirm={handleSwipeToConfirm}
       />
-      <PrayerTrend prayerStatus={prayerStatus} />
-      <PrayerHeatmap prayerStatus={prayerStatus} />
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    width: '100%',
+  },
   scroll: {
     flex: 1,
     width: '100%',
@@ -120,10 +122,11 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   locationTag: {
-    marginBottom: SPACING.xxl,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.lg,
   },
   archTimer: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xxl + 16,
   },
   datePicker: {
     marginBottom: SPACING.md,

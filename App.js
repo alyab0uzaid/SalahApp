@@ -508,7 +508,11 @@ export default function App() {
                         />
                       )}
                     </Tab.Screen>
-                    <Tab.Screen name="Tracker" component={TrackerScreen} />
+                    <Tab.Screen name="Tracker">
+                      {(props) => (
+                        <TrackerScreen {...props} prayerStatus={prayerStatus} />
+                      )}
+                    </Tab.Screen>
                     <Tab.Screen name="Settings" component={SettingsScreen} />
                   </Tab.Navigator>
                 </NavigationContainer>
