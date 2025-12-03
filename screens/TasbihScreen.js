@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Dimensions, Animated, PanResponder } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -53,9 +53,14 @@ const CENTER_POINT_Y = getCenterPointBetweenBeads();
 
 const TOTAL_BEAD_HEIGHT = getTotalHeight();
 
-export default function TasbihScreen() {
+export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
   const insets = useSafeAreaInsets();
   const [count, setCount] = useState(0);
+  const [instructionDismissed, setInstructionDismissed] = useState(false);
+  
+  // Animation values for instruction and counter
+  const instructionOpacity = useRef(new Animated.Value(1)).current;
+  const counterOpacity = useRef(new Animated.Value(0)).current;
 
   // Track total rotation offset - continuously increases
   const rotationOffsetRef = useRef(0);
@@ -75,29 +80,12 @@ export default function TasbihScreen() {
   );
   const [beadAnims, setBeadAnims] = useState(beadAnimsRef.current);
 
-  const handleCount = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setCount(prev => prev + 1);
-
-    // Increment rotation offset
-    rotationOffsetRef.current += 1;
-
-    // Update bead order
-    const newOrder = [...beadOrderRef.current];
-    const bottomBead = newOrder.pop();
-    newOrder.unshift(bottomBead);
-    beadOrderRef.current = newOrder;
-
+  const animateBeads = (newOrder, oldOrder) => {
     // Stop all running animations and snap beads to their current logical positions
     beadAnimsRef.current.forEach((bead) => {
       bead.animValue.stopAnimation();
       bead.scaleAnim.stopAnimation();
     });
-
-    // Calculate each bead's current logical position based on the OLD order (before rotation)
-    const oldOrder = [...newOrder];
-    const topBead = oldOrder.shift();
-    oldOrder.push(topBead);
 
     // Set each bead to its current logical position
     beadAnimsRef.current.forEach((bead) => {
@@ -137,14 +125,91 @@ export default function TasbihScreen() {
     Animated.parallel(animations).start();
   };
 
+  const handleCountDown = () => {
+    console.log('[Tasbih] handleCountDown called, current count:', count);
+    setCount(prev => {
+      if (prev === 0) {
+        console.log('[Tasbih] Count is 0, not decrementing');
+        return prev; // Prevent going below 0
+      }
+      console.log('[Tasbih] Decrementing count from', prev, 'to', prev - 1);
+      return prev - 1;
+    });
 
-  const handleReset = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Decrement rotation offset
+    rotationOffsetRef.current -= 1;
+
+    // Update bead order - reverse: top bead goes to bottom
+    const newOrder = [...beadOrderRef.current];
+    const topBead = newOrder.shift();
+    newOrder.push(topBead);
+    beadOrderRef.current = newOrder;
+
+    // Calculate old order (before reverse rotation)
+    const oldOrder = [...newOrder];
+    const bottomBead = oldOrder.pop();
+    oldOrder.unshift(bottomBead);
+
+    animateBeads(newOrder, oldOrder);
+  };
+
+  const handleCountUp = () => {
+    // Dismiss instruction on first interaction
+    if (count === 0 && !instructionDismissed) {
+      setInstructionDismissed(true);
+      Animated.parallel([
+        Animated.timing(instructionOpacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+        Animated.timing(counterOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setCount(prev => prev + 1);
+
+    // Increment rotation offset
+    rotationOffsetRef.current += 1;
+
+    // Update bead order - bottom bead goes to top
+    const newOrder = [...beadOrderRef.current];
+    const bottomBead = newOrder.pop();
+    newOrder.unshift(bottomBead);
+    beadOrderRef.current = newOrder;
+
+    // Calculate old order (before rotation)
+    const oldOrder = [...newOrder];
+    const topBead = oldOrder.shift();
+    oldOrder.push(topBead);
+
+    animateBeads(newOrder, oldOrder);
+  };
+
+
+  const handleResetPress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetBottomSheetRef?.current?.open();
+  };
+
+  const handleResetConfirm = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCount(0);
+    setInstructionDismissed(false);
+    // Reset rotation offset and bead order
+    rotationOffsetRef.current = 0;
+    beadOrderRef.current = Array.from({ length: BEAD_COUNT }, (_, i) => i);
     // Reset all beads to original positions
     const resetAnims = Array.from({ length: BEAD_COUNT }, (_, i) => {
       const targetSize = getBeadSize(i);
-      const scale = targetSize / LARGEST_BEAD_SIZE; // Scale relative to largest bead
+      const scale = targetSize / LARGEST_BEAD_SIZE;
       const position = getBeadPosition(i);
       return {
         id: i,
@@ -154,38 +219,130 @@ export default function TasbihScreen() {
     });
     beadAnimsRef.current = resetAnims;
     setBeadAnims(resetAnims);
+    beadOrderRef.current = Array.from({ length: BEAD_COUNT }, (_, i) => i);
+    rotationOffsetRef.current = 0;
+    // Show instruction again
+    Animated.parallel([
+      Animated.timing(instructionOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(counterOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
+  
+  // Expose reset function to parent via useImperativeHandle or callback
+  React.useEffect(() => {
+    if (onResetConfirm) {
+      // Store the reset function so App.js can call it
+      onResetConfirm.current = handleResetConfirm;
+    }
+  }, [onResetConfirm]);
+
+  // Track if a swipe occurred to prevent tap from firing
+  const swipeOccurredRef = useRef(false);
+
+  // Pan responder for swipe gestures - must be defined after handleCountUp and handleCountDown
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => {
+        console.log('[Tasbih] onStartShouldSetPanResponder called - returning true to capture all touches');
+        return true; // Capture all touches so we can detect swipes
+      },
+      onMoveShouldSetPanResponder: () => {
+        // Always return true to track movement
+        return true;
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        const { dy, vy } = gestureState;
+
+        console.log('[Tasbih] onPanResponderRelease - dy:', dy, 'vy:', vy);
+
+        // Check if we need to dismiss instruction before any count changes
+        const shouldDismissInstruction = count === 0 && !instructionDismissed;
+        
+        // Determine if it's a swipe or tap based on movement
+        // Swipe threshold: significant movement (30px) or velocity (0.5)
+        const isSwipe = Math.abs(dy) > 30 || Math.abs(vy) > 0.5;
+
+        if (isSwipe) {
+          // It's a swipe - determine direction
+          // In React Native, negative dy/vy means moving UP (towards top of screen)
+          // Positive dy/vy means moving DOWN (towards bottom of screen)
+          // Use velocity as primary indicator, fallback to distance
+          let isSwipeUp = false;
+          if (Math.abs(vy) > 0.1) {
+            // Use velocity - negative means moving up
+            isSwipeUp = vy < 0;
+            console.log('[Tasbih] Using velocity - vy:', vy, 'isSwipeUp:', isSwipeUp);
+          } else {
+            // Use distance - negative means moved up
+            isSwipeUp = dy < 0;
+            console.log('[Tasbih] Using distance - dy:', dy, 'isSwipeUp:', isSwipeUp);
+          }
+
+          console.log('[Tasbih] SWIPE DETECTED - isSwipeUp:', isSwipeUp, 'vy:', vy, 'dy:', dy);
+
+          if (isSwipeUp) {
+            // Swipe up - count down
+            console.log('[Tasbih] SWIPE UP - Calling handleCountDown()');
+            handleCountDown();
+          } else {
+            // Swipe down - count up
+            console.log('[Tasbih] SWIPE DOWN - Calling handleCountUp()');
+            handleCountUp();
+          }
+        } else {
+          // It's a tap - count up
+          console.log('[Tasbih] TAP DETECTED - Calling handleCountUp()');
+          handleCountUp();
+        }
+      },
+    })
+  ).current;
+
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Count Display - Separate from beads */}
+      {/* Instruction or Count Display - Both always rendered, opacity changes */}
       <View style={styles.countContainer}>
-        <Pressable onPress={handleReset}>
+        <Animated.View style={[styles.instructionWrapper, { opacity: instructionOpacity, position: 'absolute' }]}>
+          <Text style={styles.instructionText}>Tap or swipe down</Text>
           <MaterialCommunityIcons
-            name="arrow-left"
+            name="arrow-down"
             size={ICON_SIZES.md}
             color={COLORS.text.primary}
-            style={styles.resetIcon}
           />
-        </Pressable>
-        <Text style={styles.countText}>{count}</Text>
+        </Animated.View>
+        <Animated.View style={[styles.counterWrapper, { opacity: counterOpacity, position: 'absolute' }]}>
+          <Pressable onPress={handleResetPress}>
+            <MaterialCommunityIcons
+              name="refresh"
+              size={ICON_SIZES.md}
+              color={COLORS.text.primary}
+              style={styles.resetIcon}
+            />
+          </Pressable>
+          <Text style={styles.countText}>{count}</Text>
+        </Animated.View>
       </View>
 
       {/* Beads Container - Centered on space between two center beads */}
       <View style={styles.beadsContainerWrapper}>
-        <Pressable
+        <View
           style={[
             styles.beadsContainer,
             {
               top: SCREEN_HEIGHT / 2 - CENTER_POINT_Y,
             }
           ]}
-          onPress={handleCount}
-          activeOpacity={1}
+          {...panResponder.panHandlers}
         >
-          {/* String line */}
-          <View style={styles.stringLine} />
-          
           {/* Beads */}
           <View style={styles.beadsWrapper}>
             {beadAnims.map((bead, index) => {
@@ -217,7 +374,7 @@ export default function TasbihScreen() {
               );
             })}
           </View>
-        </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -230,11 +387,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   countContainer: {
-    flexDirection: 'row',
+    position: 'absolute',
+    top: SCREEN_HEIGHT / 2 - CENTER_POINT_Y - 80,
+    width: '100%',
+    height: 60,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  instructionWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.xs,
+  },
+  instructionText: {
+    color: COLORS.text.primary,
+    fontSize: FONTS.sizes.lg,
+    fontFamily: FONTS.weights.medium.primary,
+    opacity: 0.8,
+  },
+  counterWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: SPACING.lg,
-    marginBottom: SPACING.xxl,
   },
   resetIcon: {
     opacity: 0.7,
@@ -260,15 +434,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: TOTAL_BEAD_HEIGHT,
     left: 0,
-  },
-  stringLine: {
-    position: 'absolute',
-    left: SCREEN_WIDTH / 2,
-    top: 0,
-    width: 1,
-    height: TOTAL_BEAD_HEIGHT,
-    backgroundColor: COLORS.border.primary,
-    opacity: 0.3,
   },
   beadsWrapper: {
     position: 'absolute',

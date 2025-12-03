@@ -20,6 +20,7 @@ import TasbihScreen from './screens/TasbihScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
+import ResetConfirmBottomSheet from './components/ResetConfirmBottomSheet';
 import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
@@ -63,6 +64,8 @@ export default function App() {
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
+  const resetConfirmBottomSheetRef = useRef(null);
+  const tasbihResetCallbackRef = useRef(null);
   const appStartTimeRef = useRef(Date.now());
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
 
@@ -532,7 +535,9 @@ export default function App() {
                         />
                       )}
                     </Tab.Screen>
-                    <Tab.Screen name="Tasbih" component={TasbihScreen} />
+                    <Tab.Screen name="Tasbih">
+                      {() => <TasbihScreen resetBottomSheetRef={resetConfirmBottomSheetRef} onResetConfirm={tasbihResetCallbackRef} />}
+                    </Tab.Screen>
                     <Tab.Screen name="Settings" component={SettingsScreen} />
                   </Tab.Navigator>
                 </NavigationContainer>
@@ -559,6 +564,18 @@ export default function App() {
                   ref={prayerStatusBottomSheetRef}
                   onConfirm={handleStatusConfirm}
                   onCancel={handleStatusCancel}
+                />
+                <ResetConfirmBottomSheet
+                  ref={resetConfirmBottomSheetRef}
+                  onConfirm={() => {
+                    resetConfirmBottomSheetRef.current?.close();
+                    if (tasbihResetCallbackRef.current) {
+                      tasbihResetCallbackRef.current();
+                    }
+                  }}
+                  onCancel={() => {
+                    resetConfirmBottomSheetRef.current?.close();
+                  }}
                 />
               </GestureHandlerRootView>
             );
