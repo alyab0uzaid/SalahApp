@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import 'hijri-date';
 
@@ -39,15 +40,22 @@ const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress })
   };
 
   const handlePreviousDay = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() - 1);
     onDateChange(newDate);
   };
 
   const handleNextDay = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newDate = new Date(selectedDate);
     newDate.setDate(newDate.getDate() + 1);
     onDateChange(newDate);
+  };
+
+  const handleDatePress = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onDatePress();
   };
 
   const hijriDate = getHijriDate(selectedDate);
@@ -68,7 +76,7 @@ const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress })
       </TouchableOpacity>
 
       <TouchableOpacity
-        onPress={onDatePress}
+        onPress={handleDatePress}
         style={styles.dateContainer}
         activeOpacity={0.6}
       >

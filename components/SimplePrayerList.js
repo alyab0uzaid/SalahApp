@@ -1,24 +1,33 @@
-import React, { memo } from 'react';
-import { StyleSheet, Text, View, Pressable } from 'react-native';
+import React, { memo, useState, useRef, useEffect } from 'react';
+import { StyleSheet, Text, View, Pressable, Animated, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
 const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerPress, notifications = {}, prayerStatus }) => {
+  const [displayDate, setDisplayDate] = useState(selectedDate); // Date used for styling calculations
+  
+  // Animation for sliding when date changes
+  const slideAnim = useRef(new Animated.Value(0)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
+  const prevDateRef = useRef(selectedDate);
+  const screenWidth = Dimensions.get('window').width;
   // Get current time in minutes
   const currentMinutes = currentTime ? timeToMinutes(currentTime) : null;
   
   // Convert all prayer times to minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
   
-  // Check if selected date is today
+  // Check if selected date is today (using displayDate to prevent styling flash)
   const isToday = () => {
-    if (!selectedDate) return true;
+    const dateToCheck = displayDate || selectedDate;
+    if (!dateToCheck) return true;
     const today = new Date();
     return (
-      selectedDate.getDate() === today.getDate() &&
-      selectedDate.getMonth() === today.getMonth() &&
-      selectedDate.getFullYear() === today.getFullYear()
+      dateToCheck.getDate() === today.getDate() &&
+      dateToCheck.getMonth() === today.getMonth() &&
+      dateToCheck.getFullYear() === today.getFullYear()
     );
   };
 
@@ -57,8 +66,76 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
     return { isPast, isCurrent };
   };
 
+  // Sync displayDate with selectedDate when there's no animation
+  useEffect(() => {
+    if (!prevDateRef.current) {
+      setDisplayDate(selectedDate);
+      prevDateRef.current = selectedDate;
+    }
+  }, []);
+
+  // Animate slide when date changes
+  useEffect(() => {
+    if (!selectedDate || !prevDateRef.current) {
+      prevDateRef.current = selectedDate;
+      setDisplayDate(selectedDate);
+      return;
+    }
+
+    const prevDate = prevDateRef.current;
+    const currentDate = selectedDate;
+    
+    // Compare dates to determine direction
+    const prevTime = prevDate.getTime();
+    const currentTime = currentDate.getTime();
+    
+    if (prevTime !== currentTime) {
+      // Determine slide direction: forward (future) = slide left, backward (past) = slide right
+      const isForward = currentTime > prevTime;
+      const slideDistance = screenWidth * 0.3; // Start 30% of screen width from center
+      
+      // First fade out the current list (keep old styling during fade-out)
+      Animated.timing(opacityAnim, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: true,
+      }).start(() => {
+        // Update display date after fade-out completes (triggers re-render with new styling)
+        setDisplayDate(selectedDate);
+        
+        // Then slide in and fade in the new list
+        slideAnim.setValue(isForward ? slideDistance : -slideDistance);
+        opacityAnim.setValue(0.3);
+        
+        Animated.parallel([
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+          Animated.timing(opacityAnim, {
+            toValue: 1,
+            duration: 150,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }
+    
+    prevDateRef.current = selectedDate;
+  }, [selectedDate, slideAnim, opacityAnim, screenWidth]);
+
   return (
-    <View style={[styles.prayerList, style]}>
+    <Animated.View 
+      style={[
+        styles.prayerList, 
+        style,
+        {
+          transform: [{ translateX: slideAnim }],
+          opacity: opacityAnim,
+        }
+      ]}
+    >
       {prayerTimes.map((time, index) => {
         const name = prayerNames[index];
         if (!name || !time) return null;
@@ -75,6 +152,7 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
               isCurrent && styles.prayerRowCurrent
             ]}
             onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               if (onPrayerPress && !isSunrise) {
                 onPrayerPress({ name, time, index });
               }
@@ -110,7 +188,7 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
           </Pressable>
         );
       })}
-    </View>
+    </Animated.View>
   );
 };
 

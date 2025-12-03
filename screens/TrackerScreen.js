@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, View, Text, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import PrayerList from '../components/PrayerList';
 import PrayerHeatmap from '../components/PrayerHeatmap';
 import PrayerTrend from '../components/PrayerTrend';
@@ -60,7 +61,10 @@ export default function TrackerScreen({
           styles.todayButton,
           isToday() ? styles.todayButtonActive : styles.todayButtonInactive
         ]}
-        onPress={!isToday() ? handleGoToToday : undefined}
+        onPress={!isToday() ? () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          handleGoToToday();
+        } : undefined}
       >
         {!isToday() && !isPastDate() && (
           <FontAwesome

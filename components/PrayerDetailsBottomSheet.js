@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 
 const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer, notificationEnabled, onNotificationToggle }) => {
@@ -45,7 +46,10 @@ const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer, notification
               styles.optionButton,
               notificationEnabled && styles.optionButtonActive
             ]}
-            onPress={() => onNotificationToggle && onNotificationToggle(true)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onNotificationToggle && onNotificationToggle(true);
+            }}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons
@@ -66,7 +70,10 @@ const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer, notification
               styles.optionButton,
               !notificationEnabled && styles.optionButtonActive
             ]}
-            onPress={() => onNotificationToggle && onNotificationToggle(false)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onNotificationToggle && onNotificationToggle(false);
+            }}
             activeOpacity={0.7}
           >
             <MaterialCommunityIcons

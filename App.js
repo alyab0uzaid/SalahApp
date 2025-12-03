@@ -9,12 +9,14 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import * as Adhan from 'adhan';
 import HomeScreen from './screens/HomeScreen';
 import QiblaScreen from './screens/QiblaScreen';
 import TrackerScreen from './screens/TrackerScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import TasbihScreen from './screens/TasbihScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
@@ -404,6 +406,8 @@ export default function App() {
                           iconName = 'chart-line';
                         } else if (route.name === 'Settings') {
                           iconName = 'cog-outline';
+                        } else if (route.name === 'Tasbih') {
+                          iconName = 'circle-multiple';
                         }
 
                         return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
@@ -440,6 +444,7 @@ export default function App() {
                             const isFocused = state.index === index;
 
                             const onPress = () => {
+                              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                               const event = navigation.emit({
                                 type: 'tabPress',
                                 target: route.key,
@@ -527,6 +532,7 @@ export default function App() {
                         />
                       )}
                     </Tab.Screen>
+                    <Tab.Screen name="Tasbih" component={TasbihScreen} />
                     <Tab.Screen name="Settings" component={SettingsScreen} />
                   </Tab.Navigator>
                 </NavigationContainer>

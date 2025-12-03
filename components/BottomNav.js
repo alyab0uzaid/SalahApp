@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, Pressable, Animated } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { COLORS, ICON_SIZES, SPACING } from '../constants/theme';
 
 const TABS = [
@@ -35,7 +36,10 @@ const BottomNav = ({ activeTab, onTabPress, animatedBackgroundColor }) => {
               isActive && styles.tabActive,
               pressed && !isActive && styles.tabPressed,
             ]}
-            onPress={() => onTabPress?.(tab.key)}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onTabPress?.(tab.key);
+            }}
           >
             <MaterialCommunityIcons
               name={tab.icon}

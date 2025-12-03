@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useImperativeHandle, forwardRef } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import * as Haptics from 'expo-haptics';
 import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 
 const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
@@ -103,7 +104,10 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
               },
               pressed && { opacity: 0.7 }
             ]}
-            onPress={onCancel}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onCancel();
+            }}
           >
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
@@ -118,7 +122,10 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
               },
               pressed && { opacity: 0.7 }
             ]}
-            onPress={onConfirm}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onConfirm();
+            }}
           >
             <Text style={styles.confirmText}>Confirm</Text>
           </Pressable>

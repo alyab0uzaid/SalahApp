@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useImperativeHandle, forwardRef, memo } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
+import { FontAwesome } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
 import { timeToMinutes } from '../utils/timeUtils';
-import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
 const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, width = 350, height = 200, style, selectedDate, onGoToToday, isVisible = true }, ref) => {
   // Check if selected date is today
@@ -339,7 +341,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           d={generateArchPath(1)}
           fill="none"
           stroke={COLORS.accent.gradient}
-          strokeWidth="5"
+          strokeWidth="4"
           strokeLinecap="round"
         />
         
@@ -349,7 +351,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
             d={gradientPath}
             fill="none"
             stroke="url(#progressGradient)"
-            strokeWidth="5"
+            strokeWidth="4"
             strokeLinecap="round"
             opacity={shouldShowGradient ? 1 : 0}
             pointerEvents={shouldShowGradient ? 'auto' : 'none'}
@@ -388,7 +390,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={9}
+                r={7.5}
                 fill="rgba(255, 255, 255, 0.5)"
               />
             </G>
@@ -428,18 +430,18 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={9}
+                r={7.5}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.35)"
-                strokeWidth="3"
+                strokeWidth="2.5"
               />
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={9}
+                r={7.5}
                 fill="none"
                 stroke="rgba(255, 255, 255, 0.2)"
-                strokeWidth="1.5"
+                strokeWidth="1.2"
                 opacity={0.5}
               />
             </G>
@@ -456,7 +458,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={12}
+                r={10}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur1)"
                 opacity={1.0}
@@ -464,7 +466,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={12}
+                r={10}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur2)"
                 opacity={0.9}
@@ -472,7 +474,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={12}
+                r={10}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur3)"
                 opacity={0.7}
@@ -480,7 +482,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={12}
+                r={10}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur4)"
                 opacity={0.5}
@@ -488,7 +490,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={12}
+                r={10}
                 fill={COLORS.accent.white}
                 filter="url(#glowBlur5)"
                 opacity={0.3}
@@ -497,7 +499,7 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
               <Circle
                 cx={point.x}
                 cy={point.y}
-                r={10}
+                r={8}
                 fill={COLORS.accent.white}
               />
             </G>
@@ -522,11 +524,33 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
         {/* Today button - fade in when not today, positioned absolutely to take same space */}
         <Animated.View style={[styles.todayButtonContainer, { opacity: buttonOpacity }]}>
           <TouchableOpacity
-            onPress={onGoToToday}
-            style={styles.todayButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onGoToToday();
+            }}
+            style={[
+              styles.todayButton,
+              isCurrentDateToday ? styles.todayButtonActive : styles.todayButtonInactive
+            ]}
             activeOpacity={0.7}
           >
-            <Text style={styles.todayButtonText}>Today</Text>
+            {!isCurrentDateToday && !isCurrentDatePast && (
+              <FontAwesome
+                name="arrow-left"
+                size={ICON_SIZES.sm}
+                color={COLORS.text.tertiary}
+                style={styles.arrowIconLeft}
+              />
+            )}
+            <Text style={isCurrentDateToday ? styles.todayButtonTextActive : styles.todayButtonText}>Today</Text>
+            {!isCurrentDateToday && isCurrentDatePast && (
+              <FontAwesome
+                name="arrow-right"
+                size={ICON_SIZES.sm}
+                color={COLORS.text.tertiary}
+                style={styles.arrowIconRight}
+              />
+            )}
           </TouchableOpacity>
         </Animated.View>
       </View>
@@ -593,17 +617,36 @@ const styles = StyleSheet.create({
     marginBottom: 0, // Eliminate line-height gap at bottom
   },
   todayButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.lg,
     borderRadius: RADIUS.md,
     borderWidth: 1,
+  },
+  todayButtonActive: {
+    borderColor: COLORS.text.primary,
+  },
+  todayButtonInactive: {
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   todayButtonText: {
+    color: COLORS.text.tertiary,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.medium.primary,
+  },
+  todayButtonTextActive: {
     color: COLORS.text.primary,
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
+  },
+  arrowIconLeft: {
+    marginRight: SPACING.xs + 2, // 6px
+  },
+  arrowIconRight: {
+    marginLeft: SPACING.xs + 2, // 6px
   },
 });
 

@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Calendar } from 'react-native-calendars';
+import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING, RADIUS } from '../constants/theme';
 import { LocaleConfig } from 'react-native-calendars';
 
@@ -139,6 +140,7 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
 
   // Handle date selection
   const handleDayPress = (day) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (onDateSelect) {
       // Use dateString (YYYY-MM-DD) and parse in local timezone to avoid day-before issue
       const [year, month, date] = day.dateString.split('-').map(Number);
@@ -156,12 +158,14 @@ const DatePickerBottomSheet = ({ bottomSheetRef, selectedDate, onDateSelect, pra
     const year = displayMonth.getFullYear();
 
     const handlePrevMonth = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() - 1);
       setDisplayMonth(newDate);
     };
 
     const handleNextMonth = () => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       const newDate = new Date(displayMonth);
       newDate.setMonth(newDate.getMonth() + 1);
       setDisplayMonth(newDate);
