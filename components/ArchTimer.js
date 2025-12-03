@@ -51,6 +51,13 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   // Always start at 1 initially (will be reset to 0 when effect runs for today)
   const orbEntranceProgress = useRef(new Animated.Value(1)).current;
   
+  // Glow opacity - fades in after orb animation completes
+  const glowOpacity = useRef(new Animated.Value(0)).current;
+  
+  // Track if orb animation is complete - glow should only show after this
+  // Start as false - will be set to true only after animation completes
+  const [orbAnimationComplete, setOrbAnimationComplete] = useState(false);
+  
 
   // Expose animation control to parent
   useImperativeHandle(ref, () => ({
@@ -78,8 +85,11 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
       if (!isCurrentDateToday) return;
 
       console.log('[ArchTimer] Manually triggering entrance animation');
-      // Reset orb to off-screen left
+      // Reset orb to off-screen left and glow
       orbEntranceProgress.setValue(0);
+      glowOpacity.setValue(0);
+      setOrbAnimationComplete(false);
+      setGlowOpacityState(0);
 
       // Start animation immediately
       Animated.timing(orbEntranceProgress, {
@@ -89,6 +99,14 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
         useNativeDriver: false,
       }).start(() => {
         console.log('[ArchTimer] Manual entrance animation complete');
+        // Mark animation complete, then fade in glow
+        setOrbAnimationComplete(true);
+        Animated.timing(glowOpacity, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }).start();
       });
     },
     resetEntranceAnimation: () => {
@@ -108,8 +126,11 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     const isToday = isCurrentDateToday;
     console.log('[ArchTimer] Animation effect triggered, isToday:', isToday);
     if (isToday) {
-      // Reset orb to off-screen left
+      // Reset orb to off-screen left and glow to 0
       orbEntranceProgress.setValue(0);
+      glowOpacity.setValue(0); // Start with glow hidden
+      setOrbAnimationComplete(false); // Reset animation complete flag
+      setGlowOpacityState(0); // Reset state immediately to hide glow
       console.log('[ArchTimer] Starting orb entrance animation...');
 
       // Start animation immediately - fade in timer, fade out button, and animate orb
@@ -132,6 +153,14 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
         }),
       ]).start(() => {
         console.log('[ArchTimer] Orb entrance animation complete');
+        // Mark animation as complete, then fade in glow
+        setOrbAnimationComplete(true);
+        Animated.timing(glowOpacity, {
+          toValue: 1,
+          duration: 400,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }).start();
       });
     } else {
       // Fade out timer, fade in button
@@ -149,8 +178,12 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
       ]).start();
       // Keep orb at final position when not today
       orbEntranceProgress.setValue(1);
+      // Hide glow when not today
+      glowOpacity.setValue(0);
+      setOrbAnimationComplete(false);
+      setGlowOpacityState(0); // Reset state to hide glow
     }
-  }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity, orbEntranceProgress]);
+  }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity, orbEntranceProgress, glowOpacity]);
 
   // Calculate next prayer and countdown - only update when viewing today AND visible
   useEffect(() => {
@@ -353,6 +386,22 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
 
     return () => orbEntranceProgress.removeListener(listenerId);
   }, [orbEntranceProgress]);
+  
+  // Listen to glow opacity changes to trigger re-render
+  // CRITICAL: Must start at 0 and only update after animation complete
+  const [glowOpacityState, setGlowOpacityState] = useState(0);
+
+  // Listen to glow opacity animation
+  useEffect(() => {
+    const listenerId = glowOpacity.addListener(({ value }) => {
+      // Only update state if animation is complete
+      // This prevents any premature rendering
+      if (orbAnimationComplete) {
+        setGlowOpacityState(value);
+      }
+    });
+    return () => glowOpacity.removeListener(listenerId);
+  }, [glowOpacity, orbAnimationComplete]);
 
   const shouldShowCircle = isCurrentDateToday && showCircle;
 
@@ -392,6 +441,16 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
             <Stop offset="0%" stopColor="rgba(200, 200, 200, 0.2)" />
             <Stop offset="50%" stopColor="rgba(150, 150, 150, 0.08)" />
             <Stop offset="100%" stopColor="rgba(100, 100, 100, 0)" />
+          </RadialGradient>
+          
+          {/* Glow gradient - sophisticated radial gradient that looks glowy without blur */}
+          <RadialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
+            <Stop offset="0%" stopColor="rgba(255, 255, 255, 0)" />
+            <Stop offset="60%" stopColor="rgba(255, 255, 255, 0)" />
+            <Stop offset="75%" stopColor="rgba(255, 255, 255, 0.3)" />
+            <Stop offset="85%" stopColor="rgba(255, 255, 255, 0.5)" />
+            <Stop offset="95%" stopColor="rgba(255, 255, 255, 0.2)" />
+            <Stop offset="100%" stopColor="rgba(255, 255, 255, 0)" />
           </RadialGradient>
         </Defs>
 
@@ -507,13 +566,46 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           );
         })}
 
-        {/* Current time indicator - solid circle */}
+        {/* Current time indicator - solid circle with glow */}
         {shouldShowCircle && (() => {
           // Use animated point for smooth entrance animation
           const point = animatedOrbPoint;
           return (
             <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
-              {/* Main circle */}
+              {/* Static glow - multiple circles with opacity falloff (no blur for performance) - ONLY show after animation completes */}
+              {orbAnimationComplete && glowOpacityState > 0 && (
+                <>
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={22}
+                    fill="rgba(255, 255, 255, 0.08)"
+                    opacity={glowOpacityState}
+                  />
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={18}
+                    fill="rgba(255, 255, 255, 0.12)"
+                    opacity={glowOpacityState}
+                  />
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={14}
+                    fill="rgba(255, 255, 255, 0.18)"
+                    opacity={glowOpacityState}
+                  />
+                  <Circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={11}
+                    fill="rgba(255, 255, 255, 0.25)"
+                    opacity={glowOpacityState}
+                  />
+                </>
+              )}
+              {/* Main circle - always visible during animation */}
               <Circle
                 cx={point.x}
                 cy={point.y}
