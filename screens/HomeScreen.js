@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { ScrollView, StyleSheet, Platform, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useIsFocused } from '@react-navigation/native';
 import ArchTimer from '../components/ArchTimer';
 import SimplePrayerList from '../components/SimplePrayerList';
 import LocationTag from '../components/LocationTag';
@@ -26,6 +27,21 @@ export default function HomeScreen({
 }) {
   const archTimerRef = useRef(null);
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
+
+  // Trigger animation when screen comes into focus, reset when leaving
+  useEffect(() => {
+    if (isFocused && archTimerRef.current) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        archTimerRef.current.triggerEntranceAnimation?.();
+      }, 100);
+      return () => clearTimeout(timer);
+    } else if (!isFocused && archTimerRef.current) {
+      // Reset animation immediately when leaving screen
+      archTimerRef.current.resetEntranceAnimation?.();
+    }
+  }, [isFocused]);
 
   return (
     <View style={styles.container}>

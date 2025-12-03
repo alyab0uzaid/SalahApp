@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, useImperativeHandle, forwardRef, memo } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Animated } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Animated, Easing } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import Svg, { Path, Circle, Defs, LinearGradient, Stop, RadialGradient, Filter, FeGaussianBlur, G } from 'react-native-svg';
@@ -47,6 +47,11 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
   const buttonOpacity = useRef(new Animated.Value(isCurrentDateToday ? 0 : 1)).current;
 
+  // Animation progress for orb entrance (0 = off-screen left, 1 = at current position)
+  // Always start at 1 initially (will be reset to 0 when effect runs for today)
+  const orbEntranceProgress = useRef(new Animated.Value(1)).current;
+  
+
   // Expose animation control to parent
   useImperativeHandle(ref, () => ({
     animateToToday: () => {
@@ -67,14 +72,47 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           useNativeDriver: true,
         }),
       ]).start();
+    },
+    triggerEntranceAnimation: () => {
+      // Only trigger if viewing today
+      if (!isCurrentDateToday) return;
+
+      console.log('[ArchTimer] Manually triggering entrance animation');
+      // Reset orb to off-screen left
+      orbEntranceProgress.setValue(0);
+
+      // Start animation immediately
+      Animated.timing(orbEntranceProgress, {
+        toValue: 1,
+        duration: 600,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: false,
+      }).start(() => {
+        console.log('[ArchTimer] Manual entrance animation complete');
+      });
+    },
+    resetEntranceAnimation: () => {
+      // Only reset if viewing today
+      if (!isCurrentDateToday) return;
+
+      console.log('[ArchTimer] Resetting entrance animation to initial state');
+      // Stop any running animation
+      orbEntranceProgress.stopAnimation();
+      // Reset to off-screen position immediately
+      orbEntranceProgress.setValue(0);
     }
   }));
 
-  // Smooth transitions when date changes
+  // Smooth transitions when date changes + orb entrance animation
   useEffect(() => {
     const isToday = isCurrentDateToday;
+    console.log('[ArchTimer] Animation effect triggered, isToday:', isToday);
     if (isToday) {
-      // Fade in timer, fade out button
+      // Reset orb to off-screen left
+      orbEntranceProgress.setValue(0);
+      console.log('[ArchTimer] Starting orb entrance animation...');
+
+      // Start animation immediately - fade in timer, fade out button, and animate orb
       Animated.parallel([
         Animated.timing(timerOpacity, {
           toValue: 1,
@@ -86,7 +124,15 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           duration: 300,
           useNativeDriver: true,
         }),
-      ]).start();
+        Animated.timing(orbEntranceProgress, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: false, // Can't use native driver for this
+        }),
+      ]).start(() => {
+        console.log('[ArchTimer] Orb entrance animation complete');
+      });
     } else {
       // Fade out timer, fade in button
       Animated.parallel([
@@ -101,8 +147,10 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           useNativeDriver: true,
         }),
       ]).start();
+      // Keep orb at final position when not today
+      orbEntranceProgress.setValue(1);
     }
-  }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity]);
+  }, [selectedDate, isCurrentDateToday, timerOpacity, buttonOpacity, orbEntranceProgress]);
 
   // Calculate next prayer and countdown - only update when viewing today AND visible
   useEffect(() => {
@@ -252,29 +300,64 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
     const rawCurrentPosition = getCurrentPosition(rawCurrentMinutes);
     const clampedCurrentPosition = Math.max(0, Math.min(rawCurrentPosition, 1));
     const showCircle = rawCurrentPosition >= -0.3 && rawCurrentPosition <= 1.3;
-    const currentPoint = getPointOnArch(rawCurrentPosition);
-    
+
     let currentT = 0;
     if (rawCurrentPosition >= 0) {
       currentT = Math.max(0.01, clampedCurrentPosition);
     } else if (rawCurrentMinutes >= maxTime && rawCurrentMinutes < 24 * 60 && rawCurrentPosition <= 1) {
       currentT = 1;
     }
-    
+
     return {
       rawCurrentPosition,
       clampedCurrentPosition,
       showCircle,
-      currentPoint,
       currentT
     };
   }, [rawCurrentMinutes, minTime, maxTime, width, height]);
 
-  const { rawCurrentPosition, clampedCurrentPosition, showCircle, currentPoint, currentT } = archCalculations;
+  const { rawCurrentPosition, clampedCurrentPosition, showCircle, currentT } = archCalculations;
+
+  // Store target values in refs to avoid recreating interpolations
+  const targetPositionRef = useRef(rawCurrentPosition);
+  const targetGradientTRef = useRef(currentT);
+
+  // Update refs when values change
+  useEffect(() => {
+    targetPositionRef.current = rawCurrentPosition;
+    targetGradientTRef.current = currentT;
+  }, [rawCurrentPosition, currentT]);
+
+  // Animated orb position - interpolate from off-screen left to current position
+  const startPosition = -0.3; // Off-screen left
+
+  // Calculate animated orb point directly from orbEntranceProgress
+  const [animatedOrbPoint, setAnimatedOrbPoint] = useState(() =>
+    getPointOnArch(isCurrentDateToday ? startPosition : rawCurrentPosition)
+  );
+  const [animatedGradientTValue, setAnimatedGradientTValue] = useState(isCurrentDateToday ? 0 : currentT);
+
+  useEffect(() => {
+    const listenerId = orbEntranceProgress.addListener(({ value }) => {
+      // Interpolate position: 0 -> startPosition, 1 -> targetPosition
+      const position = startPosition + value * (targetPositionRef.current - startPosition);
+      setAnimatedOrbPoint(getPointOnArch(position));
+
+      // For gradient, we need to map the position to the correct T value
+      // The gradient should follow the orb's position along the curve
+      // Convert position (0 to 1 along arc) to T value (0 to currentT for gradient path)
+      const gradientT = position <= 0 ? 0 : Math.max(0.01, position * targetGradientTRef.current / targetPositionRef.current);
+      console.log('[ArchTimer] Progress:', value, 'Position:', position, 'Gradient T:', gradientT);
+      setAnimatedGradientTValue(gradientT);
+    });
+
+    return () => orbEntranceProgress.removeListener(listenerId);
+  }, [orbEntranceProgress]);
+
   const shouldShowCircle = isCurrentDateToday && showCircle;
 
-  // Memoize the gradient path
-  const gradientPath = useMemo(() => currentT > 0 ? generateArchPath(currentT) : '', [currentT, width, height]);
+  // Memoize the gradient path - use animated value during animation
+  const gradientPath = useMemo(() => animatedGradientTValue >= 0.01 ? generateArchPath(animatedGradientTValue) : '', [animatedGradientTValue, width, height]);
 
   // Should show gradient for today or past dates
   const shouldShowGradient = isCurrentDateToday || isCurrentDatePast;
@@ -297,30 +380,6 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
             <Stop offset="0%" stopColor={COLORS.border.secondary} />
             <Stop offset="100%" stopColor={COLORS.accent.white} />
           </LinearGradient>
-          
-          {/* Multiple blur filters for layered glow effect (simulating CSS box-shadow) */}
-          {/* Extremely large filter region to completely eliminate visible box edges */}
-          <Filter id="glowBlur1" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="5" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur2" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="10" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur3" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="15" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur4" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="20" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur5" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="25" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur6" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="30" edgeMode="none" />
-          </Filter>
-          <Filter id="glowBlur7" x="-500%" y="-500%" width="1100%" height="1100%">
-            <FeGaussianBlur stdDeviation="35" edgeMode="none" />
-          </Filter>
           
           {/* Liquid glass gradients */}
           <RadialGradient id="liquidGlass" cx="30%" cy="30%">
@@ -448,54 +507,13 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
           );
         })}
 
-        {/* Current time indicator - solid circle with glow */}
+        {/* Current time indicator - solid circle */}
         {shouldShowCircle && (() => {
-          // Use raw position to allow off-screen movement
-          const point = currentPoint;
+          // Use animated point for smooth entrance animation
+          const point = animatedOrbPoint;
           return (
             <G opacity={isCurrentDateToday ? 1 : 0} pointerEvents={isCurrentDateToday ? 'auto' : 'none'}>
-              {/* Glow layers - multiple blurred circles for enhanced glow effect */}
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                filter="url(#glowBlur1)"
-                opacity={1.0}
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                filter="url(#glowBlur2)"
-                opacity={0.9}
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                filter="url(#glowBlur3)"
-                opacity={0.7}
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                filter="url(#glowBlur4)"
-                opacity={0.5}
-              />
-              <Circle
-                cx={point.x}
-                cy={point.y}
-                r={10}
-                fill={COLORS.accent.white}
-                filter="url(#glowBlur5)"
-                opacity={0.3}
-              />
-              {/* Main circle on top */}
+              {/* Main circle */}
               <Circle
                 cx={point.x}
                 cy={point.y}
