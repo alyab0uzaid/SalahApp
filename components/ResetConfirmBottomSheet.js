@@ -68,7 +68,7 @@ const ResetConfirmBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
     >
       <BottomSheetView style={styles.contentContainer}>
         <View style={styles.questionContainer}>
-          <Text style={styles.questionText}>RESET COUNTER?</Text>
+          <Text style={styles.questionText}>RESET SIBHA?</Text>
         </View>
 
         <View style={styles.buttonsContainer}>
