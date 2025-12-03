@@ -143,7 +143,7 @@ export default function QiblaCompass({ onBackgroundChange, isScreenFocused = tru
         Magnetometer.setUpdateInterval(16);
         
         subscriptionRef.current = Magnetometer.addListener((data) => {
-          const newAngle = calculateAngle(data, lastAngleRef.current, 0.9);
+          const newAngle = calculateAngle(data, lastAngleRef.current, 1.1);
           if (newAngle !== lastAngleRef.current) {
             lastAngleRef.current = newAngle;
             setMagnetometer(newAngle);
