@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, ActivityIndicator, Animated, Pressable } from 'react-native';
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
@@ -16,6 +17,8 @@ import HomeScreen from './screens/HomeScreen';
 import QiblaScreen from './screens/QiblaScreen';
 import TrackerScreen from './screens/TrackerScreen';
 import SettingsScreen from './screens/SettingsScreen';
+import CalculationMethodScreen from './screens/CalculationMethodScreen';
+import AsrMethodScreen from './screens/AsrMethodScreen';
 import TasbihScreen from './screens/TasbihScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
@@ -24,8 +27,49 @@ import ResetConfirmBottomSheet from './components/ResetConfirmBottomSheet';
 import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
+import { getSettings } from './utils/settingsStorage';
 
 const Tab = createBottomTabNavigator();
+const SettingsStack = createStackNavigator();
+
+// Settings Stack Navigator Component
+function SettingsStackNavigator({ onSettingsChange }) {
+  // Create component wrappers that pass both navigation props and callback
+  const SettingsMainComponent = (props) => {
+    return <SettingsScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
+  const CalculationMethodComponent = (props) => {
+    return <CalculationMethodScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
+  const AsrMethodComponent = (props) => {
+    return <AsrMethodScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+  
+  return (
+    <SettingsStack.Navigator 
+      screenOptions={{ headerShown: false }}
+      initialRouteName="SettingsMain"
+    >
+      <SettingsStack.Screen 
+        name="SettingsMain"
+        component={SettingsMainComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen 
+        name="CalculationMethod"
+        component={CalculationMethodComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen 
+        name="AsrMethod"
+        component={AsrMethodComponent}
+        options={{ headerShown: false }}
+      />
+    </SettingsStack.Navigator>
+  );
+}
 
 export default function App() {
   // Load fonts
@@ -74,6 +118,12 @@ export default function App() {
 
   // State for prayer status confirmation
   const [pendingSwipe, setPendingSwipe] = useState(null);
+
+  // State for calculation settings
+  const [calculationSettings, setCalculationSettings] = useState({
+    calculationMethod: 'MuslimWorldLeague',
+    asrMethod: 'Standard',
+  });
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
@@ -171,7 +221,37 @@ export default function App() {
     })();
   }, []);
 
-  // Calculate prayer times when location or selected date changes
+  // Load settings on mount
+  useEffect(() => {
+    const loadSettings = async () => {
+      const settings = await getSettings();
+      setCalculationSettings(settings);
+    };
+    loadSettings();
+  }, []);
+
+  // Helper function to get calculation method
+  const getCalculationMethod = (methodName) => {
+    const methodMap = {
+      'MuslimWorldLeague': Adhan.CalculationMethod.MuslimWorldLeague,
+      'IslamicSocietyOfNorthAmerica': Adhan.CalculationMethod.IslamicSocietyOfNorthAmerica,
+      'Egyptian': Adhan.CalculationMethod.Egyptian,
+      'UmmAlQura': Adhan.CalculationMethod.UmmAlQura,
+      'UniversityOfIslamicSciencesKarachi': Adhan.CalculationMethod.UniversityOfIslamicSciencesKarachi,
+      'InstituteOfGeophysicsUniversityOfTehran': Adhan.CalculationMethod.InstituteOfGeophysicsUniversityOfTehran,
+      'Shia': Adhan.CalculationMethod.Shia,
+      'Gulf': Adhan.CalculationMethod.Gulf,
+      'Kuwait': Adhan.CalculationMethod.Kuwait,
+      'Qatar': Adhan.CalculationMethod.Qatar,
+      'Singapore': Adhan.CalculationMethod.Singapore,
+      'Other': Adhan.CalculationMethod.Other,
+    };
+    
+    const method = methodMap[methodName] || Adhan.CalculationMethod.MuslimWorldLeague;
+    return method();
+  };
+
+  // Calculate prayer times when location, selected date, or settings change
   useEffect(() => {
     if (location) {
       const today = new Date();
@@ -188,7 +268,15 @@ export default function App() {
         location.coords.longitude
       );
 
-      const params = Adhan.CalculationMethod.MuslimWorldLeague();
+      const params = getCalculationMethod(calculationSettings.calculationMethod);
+      
+      // Set Asr calculation method (madhab)
+      if (calculationSettings.asrMethod === 'Hanafi') {
+        params.madhab = Adhan.Madhab.Hanafi;
+      } else {
+        params.madhab = Adhan.Madhab.Shafi;
+      }
+
       const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
 
       const formattedTimes = [
@@ -207,7 +295,7 @@ export default function App() {
       setPrayerTimes(formattedTimes);
       setLoading(false);
     }
-  }, [location, selectedDate]);
+  }, [location, selectedDate, calculationSettings]);
 
   // Update current time every 10 seconds
   useEffect(() => {
@@ -361,7 +449,7 @@ export default function App() {
   // Check if content is ready to render
   const isContentReady = fontsLoaded && !loading && minLoadingComplete;
   
-  return (
+    return (
     <SafeAreaProvider>
       <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Main content - rendered behind loading screen when ready */}
@@ -369,53 +457,53 @@ export default function App() {
         <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
           {(() => {
             // Show error screen if location failed and no prayer times
-            if (locationError && prayerTimes.length === 0) {
-              return (
-                <View style={[styles.container, styles.centerContent]}>
-                  <Text style={styles.errorText}>
-                    Unable to get location.
-                  </Text>
-                  <Text style={styles.errorText}>
-                    {locationError}
-                  </Text>
-                </View>
-              );
-            }
+  if (locationError && prayerTimes.length === 0) {
+    return (
+      <View style={[styles.container, styles.centerContent]}>
+        <Text style={styles.errorText}>
+          Unable to get location.
+        </Text>
+        <Text style={styles.errorText}>
+          {locationError}
+        </Text>
+      </View>
+    );
+  }
 
-            return (
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <NavigationContainer>
-                  <Tab.Navigator
-                    screenOptions={({ route }) => ({
-                      headerShown: false,
-                      tabBarStyle: {
-                        backgroundColor: COLORS.background.primary,
-                        borderTopWidth: 0,
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        <Tab.Navigator
+          screenOptions={({ route }) => ({
+            headerShown: false,
+            tabBarStyle: {
+              backgroundColor: COLORS.background.primary,
+              borderTopWidth: 0,
                         paddingBottom: SPACING.xxxl,
-                        paddingTop: SPACING.sm,
+              paddingTop: SPACING.sm,
                         height: SPACING.sm + ICON_SIZES.lg + SPACING.xs + SPACING.xxxl,
-                      },
-                      tabBarActiveTintColor: COLORS.text.primary,
-                      tabBarInactiveTintColor: COLORS.text.faded,
-                      tabBarShowLabel: false,
-                      tabBarIcon: ({ color, size }) => {
-                        let iconName;
+            },
+            tabBarActiveTintColor: COLORS.text.primary,
+            tabBarInactiveTintColor: COLORS.text.faded,
+            tabBarShowLabel: false,
+            tabBarIcon: ({ color, size }) => {
+              let iconName;
 
-                        if (route.name === 'Home') {
-                          iconName = 'home-variant-outline';
-                        } else if (route.name === 'Qibla') {
-                          iconName = 'compass-outline';
-                        } else if (route.name === 'Tracker') {
-                          iconName = 'chart-line';
-                        } else if (route.name === 'Settings') {
-                          iconName = 'cog-outline';
+              if (route.name === 'Home') {
+                iconName = 'home-variant-outline';
+              } else if (route.name === 'Qibla') {
+                iconName = 'compass-outline';
+              } else if (route.name === 'Tracker') {
+                iconName = 'chart-line';
+              } else if (route.name === 'Settings') {
+                iconName = 'cog-outline';
                         } else if (route.name === 'Tasbih') {
                           iconName = 'circle-multiple';
-                        }
+              }
 
-                        return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
-                      },
-                    })}
+              return <MaterialCommunityIcons name={iconName} size={ICON_SIZES.lg} color={color} />;
+            },
+          })}
                     tabBar={(props) => {
                       // Custom tab bar that animates background on Qibla screen
                       const { state, descriptors, navigation } = props;
@@ -483,35 +571,35 @@ export default function App() {
                         </Animated.View>
                       );
                     }}
-                  >
-                    <Tab.Screen name="Home">
-                      {(props) => (
-                        <HomeScreen
-                          {...props}
-                          location={location}
-                          locationName={locationName}
-                          prayerTimes={prayerTimes}
-                          prayerNames={prayerNames}
-                          currentTime={currentTime}
-                          selectedDate={selectedDate}
-                          setSelectedDate={setSelectedDate}
-                          prayerStatus={prayerStatus}
-                          handlePrayerStatusUpdate={handlePrayerStatusUpdate}
-                          handlePrayerPress={handlePrayerPress}
-                          notifications={notifications}
-                          handleSwipeToConfirm={handleSwipeToConfirm}
-                          handleDatePickerPress={handleDatePickerPress}
-                          todayPrayerTimesRef={todayPrayerTimesRef}
-                          setPrayerTimes={setPrayerTimes}
-                        />
-                      )}
-                    </Tab.Screen>
-                    <Tab.Screen name="Qibla">
-                      {(props) => (
-                        <QiblaScreen
-                          {...props}
-                          qiblaBgOpacity={qiblaBgOpacity}
-                          onBackgroundChange={handleQiblaBackgroundChange}
+        >
+          <Tab.Screen name="Home">
+            {(props) => (
+              <HomeScreen
+                {...props}
+                location={location}
+                locationName={locationName}
+                prayerTimes={prayerTimes}
+                prayerNames={prayerNames}
+                currentTime={currentTime}
+                selectedDate={selectedDate}
+                setSelectedDate={setSelectedDate}
+                prayerStatus={prayerStatus}
+                handlePrayerStatusUpdate={handlePrayerStatusUpdate}
+                handlePrayerPress={handlePrayerPress}
+                notifications={notifications}
+                handleSwipeToConfirm={handleSwipeToConfirm}
+                handleDatePickerPress={handleDatePickerPress}
+                todayPrayerTimesRef={todayPrayerTimesRef}
+                setPrayerTimes={setPrayerTimes}
+              />
+            )}
+          </Tab.Screen>
+          <Tab.Screen name="Qibla">
+            {(props) => (
+              <QiblaScreen
+                {...props}
+                qiblaBgOpacity={qiblaBgOpacity}
+                onBackgroundChange={handleQiblaBackgroundChange}
                           locationName={locationName}
                         />
                       )}
@@ -532,39 +620,52 @@ export default function App() {
                           handleSwipeToConfirm={handleSwipeToConfirm}
                           handleDatePickerPress={handleDatePickerPress}
                           locationName={locationName}
-                        />
-                      )}
-                    </Tab.Screen>
+              />
+            )}
+          </Tab.Screen>
                     <Tab.Screen name="Tasbih">
                       {() => <TasbihScreen resetBottomSheetRef={resetConfirmBottomSheetRef} onResetConfirm={tasbihResetCallbackRef} />}
                     </Tab.Screen>
-                    <Tab.Screen name="Settings" component={SettingsScreen} />
-                  </Tab.Navigator>
-                </NavigationContainer>
+          <Tab.Screen name="Settings" options={{ headerShown: false }}>
+            {() => {
+              const handleSettingsChange = async () => {
+                try {
+                  const settings = await getSettings();
+                  setCalculationSettings(settings);
+                } catch (error) {
+                  console.error('Error loading settings:', error);
+                }
+              };
 
-                {/* Bottom Sheets */}
-                <PrayerDetailsBottomSheet
-                  bottomSheetRef={bottomSheetRef}
-                  selectedPrayer={selectedPrayer}
-                  notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
-                  onNotificationToggle={handleNotificationToggle}
+              return <SettingsStackNavigator onSettingsChange={handleSettingsChange} />;
+            }}
+          </Tab.Screen>
+        </Tab.Navigator>
+      </NavigationContainer>
+
+      {/* Bottom Sheets */}
+      <PrayerDetailsBottomSheet
+        bottomSheetRef={bottomSheetRef}
+        selectedPrayer={selectedPrayer}
+        notificationEnabled={selectedPrayer ? notifications[selectedPrayer.name] : false}
+        onNotificationToggle={handleNotificationToggle}
                   selectedDate={selectedDate}
                   prayerStatus={prayerStatus}
                   onPrayerStatusUpdate={handlePrayerStatusUpdate}
-                />
+      />
 
-                <DatePickerBottomSheet
-                  bottomSheetRef={datePickerBottomSheetRef}
-                  selectedDate={selectedDate}
-                  onDateSelect={handleDateSelect}
-                  prayerStatus={prayerStatus}
-                />
+      <DatePickerBottomSheet
+        bottomSheetRef={datePickerBottomSheetRef}
+        selectedDate={selectedDate}
+        onDateSelect={handleDateSelect}
+        prayerStatus={prayerStatus}
+      />
 
-                <PrayerStatusBottomSheet
-                  ref={prayerStatusBottomSheetRef}
-                  onConfirm={handleStatusConfirm}
-                  onCancel={handleStatusCancel}
-                />
+      <PrayerStatusBottomSheet
+        ref={prayerStatusBottomSheetRef}
+        onConfirm={handleStatusConfirm}
+        onCancel={handleStatusCancel}
+      />
                 <ResetConfirmBottomSheet
                   ref={resetConfirmBottomSheetRef}
                   onConfirm={() => {
@@ -577,7 +678,7 @@ export default function App() {
                     resetConfirmBottomSheetRef.current?.close();
                   }}
                 />
-              </GestureHandlerRootView>
+    </GestureHandlerRootView>
             );
           })()}
         </View>

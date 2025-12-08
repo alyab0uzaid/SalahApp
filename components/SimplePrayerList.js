@@ -1,4 +1,4 @@
-import React, { memo, useState, useRef, useEffect } from 'react';
+import React, { memo, useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { StyleSheet, Text, View, Pressable, Animated, Dimensions } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -6,7 +6,8 @@ import { timeToMinutes } from '../utils/timeUtils';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 
 const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, selectedDate, onPrayerPress, notifications = {}, prayerStatus }) => {
-  const [displayDate, setDisplayDate] = useState(selectedDate); // Date used for styling calculations
+  const [displayDate, setDisplayDate] = useState(selectedDate || new Date()); // Date used for styling calculations
+  const stylingDateRef = useRef(selectedDate || new Date()); // Ref to track date used for styling (only updates after fade-out)
   
   // Animation for sliding when date changes
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -19,9 +20,10 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
   // Convert all prayer times to minutes
   const timesInMinutes = prayerTimes.map(time => timeToMinutes(time));
   
-  // Check if selected date is today (using displayDate to prevent styling flash)
+  // Check if selected date is today (using stylingDateRef to prevent styling flash)
   const isToday = () => {
-    const dateToCheck = displayDate || selectedDate;
+    // Always use stylingDateRef for styling to prevent flash during animations
+    const dateToCheck = stylingDateRef.current;
     if (!dateToCheck) return true;
     const today = new Date();
     return (
@@ -31,11 +33,36 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
     );
   };
 
-  const isCurrentDateToday = isToday();
+  // Check if selected date is in the past
+  const isPastDate = () => {
+    // Always use stylingDateRef for styling to prevent flash during animations
+    const dateToCheck = stylingDateRef.current;
+    if (!dateToCheck) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(dateToCheck);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate < today;
+  };
 
   // Determine if a prayer is past, current, or future
   const getPrayerStatus = (index) => {
-    if (!isCurrentDateToday || !currentMinutes || timesInMinutes.length === 0) {
+    // Calculate date status using ref (always current, doesn't trigger re-renders)
+    const dateIsPast = isPastDate();
+    const dateIsToday = isToday();
+    
+    // If viewing a past date, all prayers are past
+    if (dateIsPast) {
+      return { isPast: true, isCurrent: false };
+    }
+
+    // If viewing a future date, all prayers are future
+    if (!dateIsToday) {
+      return { isPast: false, isCurrent: false };
+    }
+
+    // If not today or no current time, treat as future
+    if (!currentMinutes || timesInMinutes.length === 0) {
       return { isPast: false, isCurrent: false };
     }
 
@@ -66,19 +93,30 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
     return { isPast, isCurrent };
   };
 
-  // Sync displayDate with selectedDate when there's no animation
+  // Initialize displayDate and stylingDateRef with selectedDate
   useEffect(() => {
-    if (!prevDateRef.current) {
+    if (!displayDate && selectedDate) {
       setDisplayDate(selectedDate);
+      stylingDateRef.current = selectedDate;
       prevDateRef.current = selectedDate;
     }
   }, []);
+
+  // Update stylingDateRef immediately when selectedDate changes (before render)
+  useLayoutEffect(() => {
+    // Only update if it's different to avoid unnecessary updates
+    if (selectedDate && stylingDateRef.current?.getTime() !== selectedDate.getTime()) {
+      // Don't update stylingDateRef here - it should only update after fade-out
+      // This effect is just to ensure we're ready
+    }
+  }, [selectedDate]);
 
   // Animate slide when date changes
   useEffect(() => {
     if (!selectedDate || !prevDateRef.current) {
       prevDateRef.current = selectedDate;
       setDisplayDate(selectedDate);
+      stylingDateRef.current = selectedDate;
       return;
     }
 
@@ -90,35 +128,41 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
     const currentTime = currentDate.getTime();
     
     if (prevTime !== currentTime) {
+      // IMPORTANT: Don't update stylingDateRef yet - keep old date for styling during fade-out
       // Determine slide direction: forward (future) = slide left, backward (past) = slide right
       const isForward = currentTime > prevTime;
       const slideDistance = screenWidth * 0.3; // Start 30% of screen width from center
       
       // First fade out the current list (keep old styling during fade-out)
+      // stylingDateRef.current keeps the old date during fade-out
       Animated.timing(opacityAnim, {
         toValue: 0,
-        duration: 100,
+        duration: 150,
         useNativeDriver: true,
       }).start(() => {
-        // Update display date after fade-out completes (triggers re-render with new styling)
-        setDisplayDate(selectedDate);
+        // Update stylingDateRef first (synchronously, before any re-render)
+        stylingDateRef.current = selectedDate;
+        // Small delay to ensure ref update is processed before state update
+        requestAnimationFrame(() => {
+          setDisplayDate(selectedDate); // Then update state (triggers re-render)
         
-        // Then slide in and fade in the new list
-        slideAnim.setValue(isForward ? slideDistance : -slideDistance);
-        opacityAnim.setValue(0.3);
-        
-        Animated.parallel([
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacityAnim, {
-            toValue: 1,
-            duration: 150,
-            useNativeDriver: true,
-          }),
-        ]).start();
+          // Then slide in and fade in the new list
+          slideAnim.setValue(isForward ? slideDistance : -slideDistance);
+          opacityAnim.setValue(0.3);
+          
+          Animated.parallel([
+            Animated.timing(slideAnim, {
+              toValue: 0,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+            Animated.timing(opacityAnim, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        });
       });
     }
     
@@ -180,7 +224,12 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
                   <MaterialCommunityIcons
                     name={hasNotification ? 'bell' : 'bell-off-outline'}
                     size={18}
-                    color={COLORS.text.tertiary}
+                    color={
+                      isPast 
+                        ? COLORS.text.disabled 
+                        : COLORS.text.primary
+                    }
+                    style={isPast && { opacity: 0.5 }}
                   />
                 </View>
               </View>
@@ -205,14 +254,14 @@ const styles = StyleSheet.create({
     paddingVertical: SPACING.sm + 2,
     paddingLeft: SPACING.md + 4,
     paddingRight: SPACING.md + 4,
-    backgroundColor: COLORS.background.secondary,
+    backgroundColor: 'transparent',
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     marginBottom: SPACING.sm + 2,
   },
   prayerRowCurrent: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: COLORS.text.primary,
     borderWidth: 1,
   },
   prayerRowContent: {
@@ -226,7 +275,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   prayerName: {
-    color: COLORS.text.secondary,
+    color: COLORS.text.primary,
     fontSize: 17,
     fontFamily: FONTS.weights.regular.primary,
   },

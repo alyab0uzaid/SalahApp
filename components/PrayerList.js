@@ -109,7 +109,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
     // Update parent state - function expects (prayerName, status)
     onPrayerStatusUpdate(prayerName, newStatus);
   };
-
+  
   // Sync local state with parent state when date changes or parent state updates
   useEffect(() => {
     if (!selectedDate) return;
@@ -234,7 +234,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
         // Skip sunrise
         if (isSunrise) {
           return null;
-        }
+          }
 
         const { isPast, isCurrent } = getPrayerStatus(index);
         const prayerStatusValue = getPrayerStatusForDate(name);
@@ -250,12 +250,12 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
               // Haptic feedback
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               
-              // Show color change on release
-              setPressedPrayer(name);
-              // Clear it after a brief moment
-              setTimeout(() => {
-                setPressedPrayer(null);
-              }, 150);
+                // Show color change on release
+                setPressedPrayer(name);
+                // Clear it after a brief moment
+                setTimeout(() => {
+                  setPressedPrayer(null);
+                }, 150);
 
               // Handle status cycling for prayers
               handlePrayerTap(name);
@@ -266,7 +266,7 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
                 {/* Status indicator circle on the left */}
                 <View style={styles.statusIndicator}>
                   {prayerStatusValue === 'on-time' && (
-                    <MaterialCommunityIcons
+                <MaterialCommunityIcons
                       name="check"
                       size={16}
                       color={COLORS.text.primary}

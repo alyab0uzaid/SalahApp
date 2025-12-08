@@ -29,13 +29,13 @@ export default function HomeScreen({
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
+    <ScrollView
+      style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-        clipsToBounds={false}
-      >
-        <LocationTag
+      showsVerticalScrollIndicator={false}
+      clipsToBounds={false}
+    >
+      <LocationTag
         locationName={locationName}
         style={styles.locationTag}
       />
@@ -98,7 +98,7 @@ export default function HomeScreen({
         onPrayerPress={handlePrayerPress}
         notifications={notifications}
       />
-      </ScrollView>
+    </ScrollView>
     </View>
   );
 }
