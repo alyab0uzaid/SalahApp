@@ -22,6 +22,7 @@ import CalculationMethodSelectScreen from './screens/CalculationMethodSelectScre
 import AsrMethodScreen from './screens/AsrMethodScreen';
 import DisplayTimeScreen from './screens/DisplayTimeScreen';
 import TasbihScreen from './screens/TasbihScreen';
+import OnboardingScreen from './screens/OnboardingScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
@@ -93,6 +94,10 @@ function SettingsStackNavigator({ onSettingsChange }) {
 }
 
 export default function App() {
+  // Onboarding will only show on first app launch (when onboardingCompleted is false/null)
+  // To reset onboarding for testing, use the resetOnboarding function from settingsStorage
+  // or delete and reinstall the app
+
   // Load fonts
   const [fontsLoaded] = useFonts({
     SpaceGrotesk_400Regular,
@@ -131,6 +136,7 @@ export default function App() {
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
   const resetConfirmBottomSheetRef = useRef(null);
+  const [onboardingCompleted, setOnboardingCompleted] = useState(true); // Default to true, will be set by settings load
   const tasbihResetCallbackRef = useRef(null);
   const appStartTimeRef = useRef(Date.now());
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
@@ -159,7 +165,7 @@ export default function App() {
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
-  
+
   // Animated opacity for loading screen fade-out
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
@@ -170,28 +176,20 @@ export default function App() {
     return formatTime(now);
   });
 
-  // Request location permission and get location
-  useEffect(() => {
-    (async () => {
-      try {
-        const existing = await Location.getForegroundPermissionsAsync();
-        let status = existing.status;
+  // Fetch location (call this after permission is granted)
+  const fetchLocation = async () => {
+    try {
+      const existing = await Location.getForegroundPermissionsAsync();
+      let status = existing.status;
 
-        if (status !== 'granted' && existing.canAskAgain) {
-          const requested = await Location.requestForegroundPermissionsAsync();
-          status = requested.status;
-        }
+      // If permission is not granted, wait (user might be in onboarding)
+      if (status !== 'granted') {
+        // Don't show error yet - user might grant permission during onboarding
+        setLoading(false);
+        return;
+      }
 
-        if (status !== 'granted') {
-          setLocationError(
-            status === 'denied'
-              ? 'Location permission denied. Please enable location access for this app in your browser or device settings.'
-              : 'Location permission unavailable. Please enable location access for this app in your browser or device settings.'
-          );
-          setLoading(false);
-          return;
-        }
-
+        // Permission is granted, proceed with getting location
         const withTimeout = (promise, ms) =>
           Promise.race([
             promise,
@@ -245,12 +243,19 @@ export default function App() {
         } catch (geocodeError) {
           setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
         }
-      } catch (error) {
-        setLocationError(error.message);
-        setLoading(false);
-        return;
-      }
-    })();
+
+      // Location successfully fetched, set loading to false
+      setLoading(false);
+    } catch (error) {
+      setLocationError(error.message);
+      setLoading(false);
+      return;
+    }
+  };
+
+  // Try to fetch location on mount (will succeed if permission already granted)
+  useEffect(() => {
+    fetchLocation();
   }, []);
 
   // Load settings on mount
@@ -261,7 +266,7 @@ export default function App() {
       const dateFormat = settings.dateFormat || 'MM/DD/YYYY';
       setCalculationSettings({
         calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
-        asrMethod: settings.asrMethod || 'Standard',
+        asrMethod: settings.asrMethod || 'Standard', // Default to Standard if not set (for backward compatibility)
       });
       setDisplaySettings({
         timeFormat: timeFormat,
@@ -271,9 +276,28 @@ export default function App() {
       // Also update the separate timeFormat state
       setTimeFormat(timeFormat);
       lastTimeFormatRef.current = timeFormat;
+
+      // Check onboarding status
+      const completed = settings.onboardingCompleted !== false; // Default to true if not set
+      setOnboardingCompleted(completed);
     };
     loadSettings();
   }, []);
+
+  // Handle onboarding completion
+  const handleOnboardingComplete = async () => {
+    // Mark onboarding as completed (this will hide onboarding and show loading screen)
+    setOnboardingCompleted(true);
+    setLoading(true);
+    setLoadingFadeComplete(false);
+
+    // Reset minimum loading timer so loading screen shows for full duration
+    setMinLoadingComplete(false);
+    appStartTimeRef.current = Date.now(); // Reset start time for minimum loading duration
+
+    // Fetch location now that permission should be granted
+    await fetchLocation();
+  };
 
   // Helper function to get calculation method
   const getCalculationMethod = (methodName) => {
@@ -370,23 +394,34 @@ export default function App() {
 
   // Ensure minimum loading screen duration (1.5 seconds)
   useEffect(() => {
-    const minLoadingDuration = 1500; // 1.5 seconds
-    const elapsed = Date.now() - appStartTimeRef.current;
-    const remainingTime = Math.max(0, minLoadingDuration - elapsed);
+    // Only run timer when minLoadingComplete is false (initial load or after onboarding)
+    if (!minLoadingComplete) {
+      const minLoadingDuration = 1500; // 1.5 seconds
+      const elapsed = Date.now() - appStartTimeRef.current;
+      const remainingTime = Math.max(0, minLoadingDuration - elapsed);
 
-    const timer = setTimeout(() => {
-      setMinLoadingComplete(true);
-    }, remainingTime);
+      const timer = setTimeout(() => {
+        setMinLoadingComplete(true);
+      }, remainingTime);
 
-    return () => clearTimeout(timer);
-  }, []);
+      return () => clearTimeout(timer);
+    }
+  }, [minLoadingComplete]);
 
   // Handle fade transition when loading is complete
   useEffect(() => {
-    if (fontsLoaded && !loading && minLoadingComplete) {
+    // Check if app is ready
+    const isReady = fontsLoaded && !loading && minLoadingComplete;
+
+    if (isReady && !loadingFadeComplete) {
+      // App is ready - fade out loading screen normally
+      // Ensure opacity is at 1 before starting fade (in case it was set to 0)
+      if (loadingOpacity._value === 0) {
+        loadingOpacity.setValue(1);
+      }
+
       // Small delay to ensure content is rendered before fading
       setTimeout(() => {
-        // Fade out loading screen
         Animated.timing(loadingOpacity, {
           toValue: 0,
           duration: 400,
@@ -396,7 +431,7 @@ export default function App() {
         });
       }, 50);
     }
-  }, [fontsLoaded, loading, minLoadingComplete]);
+  }, [fontsLoaded, loading, minLoadingComplete, loadingFadeComplete]);
 
   // Handle Qibla background color change
   const handleQiblaBackgroundChange = (isAligned) => {
@@ -508,12 +543,12 @@ export default function App() {
 
   // Check if content is ready to render
   const isContentReady = fontsLoaded && !loading && minLoadingComplete;
-  
-    return (
+
+  return (
     <SafeAreaProvider>
       <StatusBar style="light" translucent backgroundColor="transparent" />
-      {/* Main content - rendered behind loading screen when ready */}
-      {isContentReady && (
+      {/* Main content - rendered when ready and onboarding is completed */}
+      {isContentReady && onboardingCompleted && (
         <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
           {(() => {
             // Show error screen if location failed and no prayer times
@@ -767,21 +802,28 @@ export default function App() {
                     resetConfirmBottomSheetRef.current?.close();
                   }}
                 />
+
     </GestureHandlerRootView>
             );
           })()}
         </View>
       )}
-      {/* Loading screen with fade-out - stays on top until fade completes */}
-      {isContentReady && !loadingFadeComplete && (
+      {/* Loading screen - show during initial load when not ready yet, OR when onboarding is active */}
+      {fontsLoaded && (!isContentReady || !onboardingCompleted) && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]}>
+          <LoadingScreen />
+        </View>
+      )}
+      {/* Animated loading screen fade - always show when content is ready and fade not complete */}
+      {isContentReady && onboardingCompleted && !loadingFadeComplete && (
         <Animated.View style={[StyleSheet.absoluteFill, { opacity: loadingOpacity, zIndex: 1000 }]}>
           <LoadingScreen />
         </Animated.View>
       )}
-      {/* Show loading screen while content is not ready - only after fonts are loaded */}
-      {!isContentReady && fontsLoaded && (
-        <View style={StyleSheet.absoluteFill}>
-          <LoadingScreen />
+      {/* Onboarding screen - shows on top of loading screen on first launch */}
+      {!onboardingCompleted && fontsLoaded && (
+        <View style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}>
+          <OnboardingScreen onComplete={handleOnboardingComplete} />
         </View>
       )}
     </SafeAreaProvider>

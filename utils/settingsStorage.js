@@ -5,10 +5,11 @@ const SETTINGS_KEY = '@SalahApp:settings';
 // Default settings
 const DEFAULT_SETTINGS = {
   calculationMethod: 'MuslimWorldLeague',
-  asrMethod: 'Standard', // 'Standard' or 'Hanafi'
+  asrMethod: null, // 'Standard' or 'Hanafi' - null means not set yet
   calculationMethodAuto: false, // Auto-detect calculation method
   timeFormat: '12', // '12' for 12-hour (AM/PM) or '24' for 24-hour
   dateFormat: 'MM/DD/YYYY', // Date format preference
+  onboardingCompleted: false, // Whether user has completed onboarding
 };
 
 /**
@@ -61,5 +62,20 @@ export const updateSetting = async (key, value) => {
   const settings = await getSettings();
   settings[key] = value;
   await saveSettings(settings);
+};
+
+/**
+ * Reset onboarding status (for testing)
+ * @returns {Promise<void>}
+ */
+export const resetOnboarding = async () => {
+  try {
+    const settings = await getSettings();
+    settings.onboardingCompleted = false;
+    await saveSettings(settings);
+    console.log('Onboarding reset to false');
+  } catch (error) {
+    console.error('Error resetting onboarding:', error);
+  }
 };
 
