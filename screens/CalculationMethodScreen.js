@@ -90,7 +90,7 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
             <Switch
               value={autoMode}
               onValueChange={handleAutoToggle}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
+              trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: '#4CAF50' }}
               thumbColor={autoMode ? COLORS.text.primary : 'rgba(255, 255, 255, 0.5)'}
             />
           </View>
@@ -116,7 +116,8 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
                 <Text
                   style={[
                     styles.settingValue,
-                    autoMode && styles.settingValueExpanded
+                    autoMode && styles.settingValueExpanded,
+                    autoMode && styles.settingValueDisabled
                   ]}
                   numberOfLines={1}
                 >
@@ -126,7 +127,7 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
                   <MaterialCommunityIcons
                     name="chevron-right"
                     size={ICON_SIZES.md}
-                    color={COLORS.text.secondary}
+                    color={COLORS.text.disabled}
                   />
                 </View>
               </View>
@@ -219,6 +220,9 @@ const styles = StyleSheet.create({
   },
   settingValueExpanded: {
     paddingRight: 0,
+  },
+  settingValueDisabled: {
+    color: COLORS.text.disabled,
   },
   chevronContainer: {
     position: 'absolute',
