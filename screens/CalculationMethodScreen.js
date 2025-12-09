@@ -235,7 +235,7 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    marginHorizontal: SPACING.md,
+    marginLeft: SPACING.md,
   },
 });
 

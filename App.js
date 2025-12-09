@@ -6,7 +6,7 @@ import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold }
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -36,6 +36,7 @@ const SettingsStack = createStackNavigator();
 
 // Settings Stack Navigator Component
 function SettingsStackNavigator({ onSettingsChange }) {
+
   // Create component wrappers that pass both navigation props and callback
   const SettingsMainComponent = (props) => {
     return <SettingsScreen {...props} onSettingsChange={onSettingsChange} />;
@@ -125,6 +126,7 @@ export default function App() {
 
   // Cache today's prayer times
   const todayPrayerTimesRef = useRef(null);
+  const lastTimeFormatRef = useRef('12'); // Initialize with default, will be updated when settings load
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
@@ -149,7 +151,11 @@ export default function App() {
   const [displaySettings, setDisplaySettings] = useState({
     timeFormat: '12',
     dateFormat: 'MM/DD/YYYY',
+    _updated: 0, // Internal field to force updates
   });
+  
+  // Separate state for timeFormat to force updates
+  const [timeFormat, setTimeFormat] = useState('12');
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
@@ -251,14 +257,20 @@ export default function App() {
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getSettings();
+      const timeFormat = settings.timeFormat || '12';
+      const dateFormat = settings.dateFormat || 'MM/DD/YYYY';
       setCalculationSettings({
         calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
         asrMethod: settings.asrMethod || 'Standard',
       });
       setDisplaySettings({
-        timeFormat: settings.timeFormat || '12',
-        dateFormat: settings.dateFormat || 'MM/DD/YYYY',
+        timeFormat: timeFormat,
+        dateFormat: dateFormat,
+        _updated: Date.now(), // Force new reference
       });
+      // Also update the separate timeFormat state
+      setTimeFormat(timeFormat);
+      lastTimeFormatRef.current = timeFormat;
     };
     loadSettings();
   }, []);
@@ -286,13 +298,25 @@ export default function App() {
 
   // Calculate prayer times when location, selected date, or settings change
   useEffect(() => {
-    if (location) {
+    if (location && displaySettings) {
       const today = new Date();
       const isToday = selectedDate.getDate() === today.getDate() &&
         selectedDate.getMonth() === today.getMonth() &&
         selectedDate.getFullYear() === today.getFullYear();
 
-      if (isToday && todayPrayerTimesRef.current && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
+      // Use the separate timeFormat state
+      const currentTimeFormat = timeFormat || '12';
+      const timeFormatChanged = lastTimeFormatRef.current !== currentTimeFormat;
+      if (timeFormatChanged) {
+        lastTimeFormatRef.current = currentTimeFormat;
+        // Clear cache to force recalculation
+        if (isToday) {
+          todayPrayerTimesRef.current = null;
+        }
+      }
+
+      // Skip recalculation only if it's today, times are cached, format hasn't changed, and times match
+      if (isToday && todayPrayerTimesRef.current && !timeFormatChanged && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
         return;
       }
 
@@ -313,33 +337,36 @@ export default function App() {
       const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
 
       const formattedTimes = [
-        formatPrayerTime(prayerTimesData.fajr, displaySettings.timeFormat),
-        formatPrayerTime(prayerTimesData.sunrise, displaySettings.timeFormat),
-        formatPrayerTime(prayerTimesData.dhuhr, displaySettings.timeFormat),
-        formatPrayerTime(prayerTimesData.asr, displaySettings.timeFormat),
-        formatPrayerTime(prayerTimesData.maghrib, displaySettings.timeFormat),
-        formatPrayerTime(prayerTimesData.isha, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.fajr, currentTimeFormat),
+        formatPrayerTime(prayerTimesData.sunrise, currentTimeFormat),
+        formatPrayerTime(prayerTimesData.dhuhr, currentTimeFormat),
+        formatPrayerTime(prayerTimesData.asr, currentTimeFormat),
+        formatPrayerTime(prayerTimesData.maghrib, currentTimeFormat),
+        formatPrayerTime(prayerTimesData.isha, currentTimeFormat),
       ];
 
       if (isToday) {
         todayPrayerTimesRef.current = formattedTimes;
       }
 
+      console.log('[App] Prayer times recalculated with format:', currentTimeFormat);
       setPrayerTimes(formattedTimes);
       setLoading(false);
     }
-  }, [location, selectedDate, calculationSettings, displaySettings]);
+  }, [location, selectedDate, calculationSettings, timeFormat]);
 
   // Update current time every 10 seconds
   useEffect(() => {
+    console.log('[App] Current time format changed to:', timeFormat);
+    // Update immediately when format changes
+    setCurrentTime(formatTime(new Date(), timeFormat));
+    
     const interval = setInterval(() => {
-      setCurrentTime(formatTime(new Date(), displaySettings.timeFormat));
+      setCurrentTime(formatTime(new Date(), timeFormat));
     }, 10000);
 
-    setCurrentTime(formatTime(new Date(), displaySettings.timeFormat));
-
     return () => clearInterval(interval);
-  }, [displaySettings.timeFormat]);
+  }, [timeFormat]);
 
   // Ensure minimum loading screen duration (1.5 seconds)
   useEffect(() => {
@@ -660,22 +687,44 @@ export default function App() {
                       {() => <TasbihScreen resetBottomSheetRef={resetConfirmBottomSheetRef} onResetConfirm={tasbihResetCallbackRef} />}
                     </Tab.Screen>
           <Tab.Screen name="Settings" options={{ headerShown: false }}>
-            {() => {
+            {(props) => {
               const handleSettingsChange = async () => {
                 try {
                   const settings = await getSettings();
+                  const timeFormat = settings.timeFormat || '12';
+                  const dateFormat = settings.dateFormat || 'MM/DD/YYYY';
+                  
+                  console.log('[Settings] Updating timeFormat to:', timeFormat);
+                  
                   setCalculationSettings({
                     calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
                     asrMethod: settings.asrMethod || 'Standard',
                   });
+                  
+                  // Force update by always creating a new object with a timestamp
+                  // This ensures React detects the change
                   setDisplaySettings({
-                    timeFormat: settings.timeFormat || '12',
-                    dateFormat: settings.dateFormat || 'MM/DD/YYYY',
+                    timeFormat: timeFormat,
+                    dateFormat: dateFormat,
+                    _updated: Date.now(), // Force new reference
                   });
+                  
+                  // Update the separate timeFormat state to trigger useEffects immediately
+                  setTimeFormat(timeFormat);
+
+                  console.log('[Settings] displaySettings updated, new timeFormat:', timeFormat);
                 } catch (error) {
                   console.error('Error loading settings:', error);
                 }
               };
+
+              // Reload settings when Settings tab comes into focus
+              React.useEffect(() => {
+                const unsubscribe = props.navigation?.addListener('focus', () => {
+                  handleSettingsChange();
+                });
+                return unsubscribe;
+              }, [props.navigation]);
 
               return <SettingsStackNavigator onSettingsChange={handleSettingsChange} />;
             }}

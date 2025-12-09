@@ -1,69 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
 import { getSettings, updateSetting } from '../utils/settingsStorage';
 
-const TIME_FORMATS = [
-  { value: '12', label: '12-hour (AM/PM)' },
-  { value: '24', label: '24-hour' },
-];
-
-const DATE_FORMATS = [
-  { value: 'MM/DD/YYYY', label: 'MM/DD/YYYY' },
-  { value: 'DD/MM/YYYY', label: 'DD/MM/YYYY' },
-  { value: 'YYYY-MM-DD', label: 'YYYY-MM-DD' },
-];
-
 export default function DisplayTimeScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
-  const [timeFormat, setTimeFormat] = useState('12');
-  const [dateFormat, setDateFormat] = useState('MM/DD/YYYY');
+  const [use24Hour, setUse24Hour] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
   }, []);
 
-  // Reload settings when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation?.addListener('focus', () => {
-      loadSettings();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
   const loadSettings = async () => {
     const settings = await getSettings();
-    setTimeFormat(settings.timeFormat || '12');
-    setDateFormat(settings.dateFormat || 'MM/DD/YYYY');
+    setUse24Hour(settings.timeFormat === '24');
   };
 
-  const handleTimeFormatChange = async (value) => {
+  const handleTimeFormatToggle = async (value) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setTimeFormat(value);
-      await updateSetting('timeFormat', value);
+      // Update local state immediately for responsive UI
+      setUse24Hour(value);
+      // Save to storage
+      await updateSetting('timeFormat', value ? '24' : '12');
+      // Notify parent to update the app immediately after save
       if (onSettingsChange) {
-        onSettingsChange();
+        await onSettingsChange();
       }
     } catch (error) {
       console.error('Error updating time format:', error);
-    }
-  };
-
-  const handleDateFormatChange = async (value) => {
-    try {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setDateFormat(value);
-      await updateSetting('dateFormat', value);
-      if (onSettingsChange) {
-        onSettingsChange();
-      }
-    } catch (error) {
-      console.error('Error updating date format:', error);
+      // Revert on error
+      setUse24Hour(!value);
     }
   };
 
@@ -95,49 +66,17 @@ export default function DisplayTimeScreen({ navigation, onSettingsChange }) {
       >
         {/* Time Format Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Time Format</Text>
-          <View style={styles.optionsContainer}>
-            {TIME_FORMATS.map((format) => (
-              <Pressable
-                key={format.value}
-                style={[
-                  styles.optionButton,
-                  timeFormat === format.value && styles.optionButtonActive
-                ]}
-                onPress={() => handleTimeFormatChange(format.value)}
-              >
-                <Text style={[
-                  styles.optionText,
-                  timeFormat === format.value && styles.optionTextActive
-                ]}>
-                  {format.label}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Date Format Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Date Format</Text>
-          <View style={styles.optionsContainer}>
-            {DATE_FORMATS.map((format) => (
-              <Pressable
-                key={format.value}
-                style={[
-                  styles.optionButton,
-                  dateFormat === format.value && styles.optionButtonActive
-                ]}
-                onPress={() => handleDateFormatChange(format.value)}
-              >
-                <Text style={[
-                  styles.optionText,
-                  dateFormat === format.value && styles.optionTextActive
-                ]}>
-                  {format.label}
-                </Text>
-              </Pressable>
-            ))}
+          <Text style={styles.sectionTitle}>TIME FORMAT</Text>
+          <View style={styles.settingsContainer}>
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>24-Hour Time</Text>
+              <Switch
+                value={use24Hour}
+                onValueChange={handleTimeFormatToggle}
+                trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: '#4CAF50' }}
+                thumbColor={use24Hour ? COLORS.text.primary : 'rgba(255, 255, 255, 0.5)'}
+              />
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -189,31 +128,26 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     marginBottom: SPACING.md,
   },
-  optionsContainer: {
+  settingsContainer: {
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
     overflow: 'hidden',
   },
-  optionButton: {
-    paddingVertical: SPACING.md,
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.08)',
+    height: 48,
   },
-  optionButtonActive: {
-    backgroundColor: COLORS.background.tertiary,
-    borderColor: COLORS.text.primary,
-  },
-  optionText: {
+  settingLabel: {
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
-    color: COLORS.text.secondary,
-  },
-  optionTextActive: {
     color: COLORS.text.primary,
-    fontFamily: FONTS.weights.medium.primary,
+    flexShrink: 0,
   },
 });
 

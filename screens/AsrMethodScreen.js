@@ -31,18 +31,9 @@ export default function AsrMethodScreen({ navigation, onSettingsChange }) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setAsrMethod(method);
       await updateSetting('asrMethod', method);
-      if (typeof onSettingsChange === 'function') {
-        await onSettingsChange();
-      }
-      // Use setTimeout to ensure state updates complete before going back
-      setTimeout(() => {
-        navigation?.goBack();
-      }, 0);
+      // Don't call onSettingsChange or navigate back - let user stay on screen
     } catch (error) {
       console.error('Error updating Asr method:', error);
-      setTimeout(() => {
-        navigation?.goBack();
-      }, 0);
     }
   };
 
@@ -75,26 +66,29 @@ export default function AsrMethodScreen({ navigation, onSettingsChange }) {
         <Text style={styles.description}>
           Choose how Asr time is calculated based on your school of thought.
         </Text>
-        
-        {ASR_METHODS.map((method) => (
-          <Pressable
-            key={method.key}
-            style={[
-              styles.optionButton,
-              asrMethod === method.key && styles.optionButtonActive,
-            ]}
-            onPress={() => handleAsrMethodChange(method.key)}
-          >
-            <Text
-              style={[
-                styles.optionText,
-                asrMethod === method.key && styles.optionTextActive,
-              ]}
-            >
-              {method.label}
-            </Text>
-          </Pressable>
-        ))}
+
+        <View style={styles.settingsContainer}>
+          {ASR_METHODS.map((method, index) => (
+            <React.Fragment key={method.key}>
+              {index > 0 && <View style={styles.separator} />}
+              <Pressable
+                style={styles.optionButton}
+                onPress={() => handleAsrMethodChange(method.key)}
+              >
+                <Text style={styles.optionText}>
+                  {method.label}
+                </Text>
+                {asrMethod === method.key && (
+                  <MaterialCommunityIcons
+                    name="check"
+                    size={ICON_SIZES.md}
+                    color={COLORS.text.primary}
+                  />
+                )}
+              </Pressable>
+            </React.Fragment>
+          ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -140,27 +134,32 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.lg,
     lineHeight: 22,
   },
-  optionButton: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
+  settingsContainer: {
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md,
-    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
   },
-  optionButtonActive: {
-    borderColor: COLORS.text.primary,
-    backgroundColor: COLORS.background.tertiary,
+  optionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    minHeight: 48,
+    paddingVertical: SPACING.sm,
   },
   optionText: {
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
-    color: COLORS.text.secondary,
-  },
-  optionTextActive: {
     color: COLORS.text.primary,
-    fontFamily: FONTS.weights.medium.primary,
+    flex: 1,
+    paddingRight: SPACING.md,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginLeft: SPACING.md,
   },
 });
 
