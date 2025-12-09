@@ -66,17 +66,17 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
 
         {/* Prayers Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prayers</Text>
+          <Text style={styles.sectionTitle}>PRAYERS</Text>
           <View style={styles.settingsContainer}>
             <Pressable
               style={styles.settingButton}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation?.navigate('CalculationMethod');
+                navigation?.navigate('AsrMethod');
               }}
             >
               <View style={styles.settingButtonContent}>
-                <Text style={styles.settingLabel}>Calculation Method</Text>
+                <Text style={styles.settingLabel}>Asr Calculation</Text>
                 <MaterialCommunityIcons
                   name="chevron-right"
                   size={ICON_SIZES.md}
@@ -91,11 +91,11 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
               style={styles.settingButton}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation?.navigate('AsrMethod');
+                navigation?.navigate('CalculationMethod');
               }}
             >
               <View style={styles.settingButtonContent}>
-                <Text style={styles.settingLabel}>Asr Calculation</Text>
+                <Text style={styles.settingLabel}>Calculation Method</Text>
                 <MaterialCommunityIcons
                   name="chevron-right"
                   size={ICON_SIZES.md}
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONTS.sizes.xxl,
+    fontSize: FONTS.sizes.xl,
     fontFamily: FONTS.weights.medium.primary,
     color: COLORS.text.primary,
     marginBottom: SPACING.xl,
@@ -133,9 +133,11 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   sectionTitle: {
-    fontSize: FONTS.sizes.lg,
+    fontSize: FONTS.sizes.sm,
     fontFamily: FONTS.weights.medium.primary,
-    color: COLORS.text.primary,
+    color: 'rgba(255, 255, 255, 0.69)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginBottom: SPACING.md,
   },
   settingsContainer: {
