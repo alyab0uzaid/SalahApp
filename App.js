@@ -18,6 +18,7 @@ import QiblaScreen from './screens/QiblaScreen';
 import TrackerScreen from './screens/TrackerScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CalculationMethodScreen from './screens/CalculationMethodScreen';
+import CalculationMethodSelectScreen from './screens/CalculationMethodSelectScreen';
 import AsrMethodScreen from './screens/AsrMethodScreen';
 import TasbihScreen from './screens/TasbihScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
@@ -42,6 +43,10 @@ function SettingsStackNavigator({ onSettingsChange }) {
   const CalculationMethodComponent = (props) => {
     return <CalculationMethodScreen {...props} onSettingsChange={onSettingsChange} />;
   };
+  
+  const CalculationMethodSelectComponent = (props) => {
+    return <CalculationMethodSelectScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
 
   const AsrMethodComponent = (props) => {
     return <AsrMethodScreen {...props} onSettingsChange={onSettingsChange} />;
@@ -60,6 +65,11 @@ function SettingsStackNavigator({ onSettingsChange }) {
       <SettingsStack.Screen 
         name="CalculationMethod"
         component={CalculationMethodComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen 
+        name="CalculationMethodSelect"
+        component={CalculationMethodSelectComponent}
         options={{ headerShown: false }}
       />
       <SettingsStack.Screen 

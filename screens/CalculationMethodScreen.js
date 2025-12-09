@@ -1,58 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
 import { getSettings, updateSetting } from '../utils/settingsStorage';
 
-// Available calculation methods
-const CALCULATION_METHODS = [
-  { key: 'MuslimWorldLeague', label: 'Muslim World League' },
-  { key: 'IslamicSocietyOfNorthAmerica', label: 'Islamic Society of North America (ISNA)' },
-  { key: 'Egyptian', label: 'Egyptian General Authority of Survey' },
-  { key: 'UmmAlQura', label: 'Umm al-Qura University, Makkah' },
-  { key: 'UniversityOfIslamicSciencesKarachi', label: 'University of Islamic Sciences, Karachi' },
-  { key: 'InstituteOfGeophysicsUniversityOfTehran', label: 'Institute of Geophysics, University of Tehran' },
-  { key: 'Shia', label: 'Shia Ithna Ashari (Ja\'fari)' },
-  { key: 'Gulf', label: 'Gulf Region' },
-  { key: 'Kuwait', label: 'Kuwait' },
-  { key: 'Qatar', label: 'Qatar' },
-  { key: 'Singapore', label: 'Singapore' },
-  { key: 'Other', label: 'Other' },
-];
+// Method label mapping
+const METHOD_LABELS = {
+  'MuslimWorldLeague': 'Muslim World League',
+  'IslamicSocietyOfNorthAmerica': 'Islamic Society of North America (ISNA)',
+  'Egyptian': 'Egyptian General Authority of Survey',
+  'UmmAlQura': 'Umm al-Qura University, Makkah',
+  'UniversityOfIslamicSciencesKarachi': 'University of Islamic Sciences, Karachi',
+  'InstituteOfGeophysicsUniversityOfTehran': 'Institute of Geophysics, University of Tehran',
+  'Shia': 'Shia Ithna Ashari (Ja\'fari)',
+  'Gulf': 'Gulf Region',
+  'Kuwait': 'Kuwait',
+  'Qatar': 'Qatar',
+  'Singapore': 'Singapore',
+  'Other': 'Other',
+};
 
 export default function CalculationMethodScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
   const [calculationMethod, setCalculationMethod] = useState('MuslimWorldLeague');
+  const [autoMode, setAutoMode] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
   }, []);
 
+  // Reload settings when screen comes into focus
+  useEffect(() => {
+    const unsubscribe = navigation?.addListener('focus', () => {
+      loadSettings();
+    });
+    return unsubscribe;
+  }, [navigation]);
+
   const loadSettings = async () => {
     const settings = await getSettings();
     setCalculationMethod(settings.calculationMethod || 'MuslimWorldLeague');
+    setAutoMode(settings.calculationMethodAuto || false);
   };
 
-  const handleCalculationMethodChange = async (method) => {
+  const handleAutoToggle = async (value) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setCalculationMethod(method);
-      await updateSetting('calculationMethod', method);
+      setAutoMode(value);
+      await updateSetting('calculationMethodAuto', value);
       if (typeof onSettingsChange === 'function') {
         await onSettingsChange();
       }
-      // Use setTimeout to ensure state updates complete before going back
-      setTimeout(() => {
-        navigation?.goBack();
-      }, 0);
     } catch (error) {
-      console.error('Error updating calculation method:', error);
-      setTimeout(() => {
-        navigation?.goBack();
-      }, 0);
+      console.error('Error updating auto mode:', error);
     }
   };
 
@@ -82,29 +85,59 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.description}>
-          Choose the method used to calculate prayer times based on your location and school of thought.
-        </Text>
-        
-        {CALCULATION_METHODS.map((method) => (
+        <View style={styles.settingsContainer}>
+          {/* Set Automatically Toggle */}
+          <View style={styles.settingRow}>
+            <Text style={styles.settingLabel}>Set automatically</Text>
+            <Switch
+              value={autoMode}
+              onValueChange={handleAutoToggle}
+              trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: 'rgba(255, 255, 255, 0.4)' }}
+              thumbColor={autoMode ? COLORS.text.primary : 'rgba(255, 255, 255, 0.5)'}
+            />
+          </View>
+
+          <View style={styles.separator} />
+
+          {/* Method Selection Button */}
           <Pressable
-            key={method.key}
-            style={[
-              styles.optionButton,
-              calculationMethod === method.key && styles.optionButtonActive,
-            ]}
-            onPress={() => handleCalculationMethodChange(method.key)}
+            style={styles.settingButton}
+            onPress={() => {
+              if (!autoMode) {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('CalculationMethodSelect');
+              }
+            }}
+            disabled={autoMode}
           >
-            <Text
-              style={[
-                styles.optionText,
-                calculationMethod === method.key && styles.optionTextActive,
-              ]}
-            >
-              {method.label}
-            </Text>
+            <View style={styles.settingButtonContent}>
+              <Text style={styles.settingLabel}>
+                Method
+              </Text>
+              <View style={styles.settingValueContainer}>
+                {autoMode ? (
+                  <>
+                    <View style={{ width: ICON_SIZES.md, height: ICON_SIZES.md }} />
+                    <Text style={[styles.settingValue, styles.settingValueRight]}>
+                      {METHOD_LABELS[calculationMethod] || calculationMethod}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.settingValue}>
+                      {METHOD_LABELS[calculationMethod] || calculationMethod}
+                    </Text>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={ICON_SIZES.md}
+                      color={COLORS.text.secondary}
+                    />
+                  </>
+                )}
+              </View>
+            </View>
           </Pressable>
-        ))}
+        </View>
       </ScrollView>
     </View>
   );
@@ -143,34 +176,58 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
   },
-  description: {
-    fontSize: FONTS.sizes.md,
-    fontFamily: FONTS.weights.regular.primary,
-    color: COLORS.text.secondary,
-    marginBottom: SPACING.lg,
-    lineHeight: 22,
-  },
-  optionButton: {
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
+  settingsContainer: {
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md,
-    marginBottom: SPACING.sm,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.08)',
+    overflow: 'hidden',
   },
-  optionButtonActive: {
-    borderColor: COLORS.text.primary,
-    backgroundColor: COLORS.background.tertiary,
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    minHeight: 48, // Fixed height to prevent size changes
   },
-  optionText: {
+  settingButton: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    minHeight: 48, // Fixed height to match settingRow
+  },
+  settingButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  settingLabel: {
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.primary,
+  },
+  settingValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: SPACING.sm,
+    flex: 1,
+    minWidth: ICON_SIZES.md + SPACING.sm, // Reserve space for arrow
+  },
+  settingValue: {
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
     color: COLORS.text.secondary,
   },
-  optionTextActive: {
-    color: COLORS.text.primary,
-    fontFamily: FONTS.weights.medium.primary,
+  settingValueRight: {
+    textAlign: 'right',
+    flex: 1,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    marginHorizontal: SPACING.md,
   },
 });
 

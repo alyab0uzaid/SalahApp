@@ -6,6 +6,7 @@ const SETTINGS_KEY = '@SalahApp:settings';
 const DEFAULT_SETTINGS = {
   calculationMethod: 'MuslimWorldLeague',
   asrMethod: 'Standard', // 'Standard' or 'Hanafi'
+  calculationMethodAuto: false, // Auto-detect calculation method
 };
 
 /**
