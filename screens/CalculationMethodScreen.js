@@ -51,9 +51,7 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setAutoMode(value);
       await updateSetting('calculationMethodAuto', value);
-      if (typeof onSettingsChange === 'function') {
-        await onSettingsChange();
-      }
+      // Don't call onSettingsChange - it causes unnecessary re-renders
     } catch (error) {
       console.error('Error updating auto mode:', error);
     }
@@ -114,26 +112,23 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
               <Text style={styles.settingLabel}>
                 Method
               </Text>
-              <View style={styles.settingValueContainer}>
-                {autoMode ? (
-                  <>
-                    <View style={{ width: ICON_SIZES.md, height: ICON_SIZES.md }} />
-                    <Text style={[styles.settingValue, styles.settingValueRight]}>
-                      {METHOD_LABELS[calculationMethod] || calculationMethod}
-                    </Text>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.settingValue}>
-                      {METHOD_LABELS[calculationMethod] || calculationMethod}
-                    </Text>
-                    <MaterialCommunityIcons
-                      name="chevron-right"
-                      size={ICON_SIZES.md}
-                      color={COLORS.text.secondary}
-                    />
-                  </>
-                )}
+              <View style={styles.settingValueRow}>
+                <Text
+                  style={[
+                    styles.settingValue,
+                    autoMode && styles.settingValueExpanded
+                  ]}
+                  numberOfLines={1}
+                >
+                  {METHOD_LABELS[calculationMethod] || calculationMethod}
+                </Text>
+                <View style={[styles.chevronContainer, { opacity: autoMode ? 0 : 1 }]}>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={ICON_SIZES.md}
+                    color={COLORS.text.secondary}
+                  />
+                </View>
               </View>
             </View>
           </Pressable>
@@ -187,42 +182,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.sm,
     paddingHorizontal: SPACING.md,
-    minHeight: 48, // Fixed height to prevent size changes
+    height: 48,
   },
   settingButton: {
-    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
-    minHeight: 48, // Fixed height to match settingRow
+    height: 48,
+    justifyContent: 'center',
   },
   settingButtonContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
+    gap: SPACING.md,
   },
   settingLabel: {
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
     color: COLORS.text.primary,
+    flexShrink: 0,
   },
-  settingValueContainer: {
+  settingValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
     justifyContent: 'flex-end',
-    gap: SPACING.sm,
-    flex: 1,
-    minWidth: ICON_SIZES.md + SPACING.sm, // Reserve space for arrow
+    position: 'relative',
   },
   settingValue: {
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.regular.primary,
     color: COLORS.text.secondary,
-  },
-  settingValueRight: {
     textAlign: 'right',
-    flex: 1,
+    paddingRight: ICON_SIZES.md + SPACING.xs,
+  },
+  settingValueExpanded: {
+    paddingRight: 0,
+  },
+  chevronContainer: {
+    position: 'absolute',
+    right: 0,
+    width: ICON_SIZES.md,
+    height: ICON_SIZES.md,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   separator: {
     height: 1,

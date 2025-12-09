@@ -146,8 +146,9 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   settingButton: {
-    paddingVertical: SPACING.md,
     paddingHorizontal: SPACING.md,
+    height: 48,
+    justifyContent: 'center',
   },
   settingButtonContent: {
     flexDirection: 'row',
