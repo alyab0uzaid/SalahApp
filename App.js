@@ -20,6 +20,7 @@ import SettingsScreen from './screens/SettingsScreen';
 import CalculationMethodScreen from './screens/CalculationMethodScreen';
 import CalculationMethodSelectScreen from './screens/CalculationMethodSelectScreen';
 import AsrMethodScreen from './screens/AsrMethodScreen';
+import DisplayTimeScreen from './screens/DisplayTimeScreen';
 import TasbihScreen from './screens/TasbihScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
@@ -51,6 +52,10 @@ function SettingsStackNavigator({ onSettingsChange }) {
   const AsrMethodComponent = (props) => {
     return <AsrMethodScreen {...props} onSettingsChange={onSettingsChange} />;
   };
+
+  const DisplayTimeComponent = (props) => {
+    return <DisplayTimeScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
   
   return (
     <SettingsStack.Navigator 
@@ -75,6 +80,11 @@ function SettingsStackNavigator({ onSettingsChange }) {
       <SettingsStack.Screen 
         name="AsrMethod"
         component={AsrMethodComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen 
+        name="DisplayTime"
+        component={DisplayTimeComponent}
         options={{ headerShown: false }}
       />
     </SettingsStack.Navigator>
@@ -133,6 +143,12 @@ export default function App() {
   const [calculationSettings, setCalculationSettings] = useState({
     calculationMethod: 'MuslimWorldLeague',
     asrMethod: 'Standard',
+  });
+
+  // State for display settings
+  const [displaySettings, setDisplaySettings] = useState({
+    timeFormat: '12',
+    dateFormat: 'MM/DD/YYYY',
   });
 
   // Animated background color for Qibla alignment
@@ -235,7 +251,14 @@ export default function App() {
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getSettings();
-      setCalculationSettings(settings);
+      setCalculationSettings({
+        calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
+        asrMethod: settings.asrMethod || 'Standard',
+      });
+      setDisplaySettings({
+        timeFormat: settings.timeFormat || '12',
+        dateFormat: settings.dateFormat || 'MM/DD/YYYY',
+      });
     };
     loadSettings();
   }, []);
@@ -290,12 +313,12 @@ export default function App() {
       const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
 
       const formattedTimes = [
-        formatPrayerTime(prayerTimesData.fajr),
-        formatPrayerTime(prayerTimesData.sunrise),
-        formatPrayerTime(prayerTimesData.dhuhr),
-        formatPrayerTime(prayerTimesData.asr),
-        formatPrayerTime(prayerTimesData.maghrib),
-        formatPrayerTime(prayerTimesData.isha),
+        formatPrayerTime(prayerTimesData.fajr, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.sunrise, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.dhuhr, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.asr, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.maghrib, displaySettings.timeFormat),
+        formatPrayerTime(prayerTimesData.isha, displaySettings.timeFormat),
       ];
 
       if (isToday) {
@@ -305,18 +328,18 @@ export default function App() {
       setPrayerTimes(formattedTimes);
       setLoading(false);
     }
-  }, [location, selectedDate, calculationSettings]);
+  }, [location, selectedDate, calculationSettings, displaySettings]);
 
   // Update current time every 10 seconds
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentTime(formatTime(new Date()));
+      setCurrentTime(formatTime(new Date(), displaySettings.timeFormat));
     }, 10000);
 
-    setCurrentTime(formatTime(new Date()));
+    setCurrentTime(formatTime(new Date(), displaySettings.timeFormat));
 
     return () => clearInterval(interval);
-  }, []);
+  }, [displaySettings.timeFormat]);
 
   // Ensure minimum loading screen duration (1.5 seconds)
   useEffect(() => {
@@ -641,7 +664,14 @@ export default function App() {
               const handleSettingsChange = async () => {
                 try {
                   const settings = await getSettings();
-                  setCalculationSettings(settings);
+                  setCalculationSettings({
+                    calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
+                    asrMethod: settings.asrMethod || 'Standard',
+                  });
+                  setDisplaySettings({
+                    timeFormat: settings.timeFormat || '12',
+                    dateFormat: settings.dateFormat || 'MM/DD/YYYY',
+                  });
                 } catch (error) {
                   console.error('Error loading settings:', error);
                 }

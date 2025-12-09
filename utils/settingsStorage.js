@@ -7,6 +7,8 @@ const DEFAULT_SETTINGS = {
   calculationMethod: 'MuslimWorldLeague',
   asrMethod: 'Standard', // 'Standard' or 'Hanafi'
   calculationMethodAuto: false, // Auto-detect calculation method
+  timeFormat: '12', // '12' for 12-hour (AM/PM) or '24' for 24-hour
+  dateFormat: 'MM/DD/YYYY', // Date format preference
 };
 
 /**

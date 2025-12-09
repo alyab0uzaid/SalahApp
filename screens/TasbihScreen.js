@@ -126,13 +126,10 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
   };
 
   const handleCountDown = () => {
-    console.log('[Tasbih] handleCountDown called, current count:', count);
     setCount(prev => {
       if (prev === 0) {
-        console.log('[Tasbih] Count is 0, not decrementing');
         return prev; // Prevent going below 0
       }
-      console.log('[Tasbih] Decrementing count from', prev, 'to', prev - 1);
       return prev - 1;
     });
 
@@ -251,7 +248,6 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => {
-        console.log('[Tasbih] onStartShouldSetPanResponder called - returning true to capture all touches');
         return true; // Capture all touches so we can detect swipes
       },
       onMoveShouldSetPanResponder: () => {
@@ -260,8 +256,6 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
       },
       onPanResponderRelease: (_, gestureState) => {
         const { dy, vy } = gestureState;
-
-        console.log('[Tasbih] onPanResponderRelease - dy:', dy, 'vy:', vy);
 
         // Check if we need to dismiss instruction before any count changes
         const shouldDismissInstruction = count === 0 && !instructionDismissed;
@@ -279,27 +273,20 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
           if (Math.abs(vy) > 0.1) {
             // Use velocity - negative means moving up
             isSwipeUp = vy < 0;
-            console.log('[Tasbih] Using velocity - vy:', vy, 'isSwipeUp:', isSwipeUp);
           } else {
             // Use distance - negative means moved up
             isSwipeUp = dy < 0;
-            console.log('[Tasbih] Using distance - dy:', dy, 'isSwipeUp:', isSwipeUp);
           }
-
-          console.log('[Tasbih] SWIPE DETECTED - isSwipeUp:', isSwipeUp, 'vy:', vy, 'dy:', dy);
 
           if (isSwipeUp) {
             // Swipe up - count down
-            console.log('[Tasbih] SWIPE UP - Calling handleCountDown()');
             handleCountDown();
           } else {
             // Swipe down - count up
-            console.log('[Tasbih] SWIPE DOWN - Calling handleCountUp()');
             handleCountUp();
           }
         } else {
           // It's a tap - count up
-          console.log('[Tasbih] TAP DETECTED - Calling handleCountUp()');
           handleCountUp();
         }
       },

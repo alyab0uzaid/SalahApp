@@ -105,6 +105,29 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
             </Pressable>
           </View>
         </View>
+
+        {/* Display & Time Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>DISPLAY & TIME</Text>
+          <View style={styles.settingsContainer}>
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('DisplayTime');
+              }}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={styles.settingLabel}>Time & Date Format</Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={ICON_SIZES.md}
+                  color={COLORS.text.secondary}
+                />
+              </View>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );

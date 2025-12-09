@@ -6,29 +6,37 @@
  */
 
 /**
- * Convert a Date object to "H:MM AM/PM" format
+ * Convert a Date object to time format
  * @param {Date} date - Date object to format
- * @returns {string} Formatted time string (e.g., "5:30 PM")
+ * @param {string} timeFormat - '12' for 12-hour (AM/PM) or '24' for 24-hour format
+ * @returns {string} Formatted time string (e.g., "5:30 PM" or "17:30")
  */
-export const formatTime = (date) => {
-  let hours = date.getHours();
+export const formatTime = (date, timeFormat = '12') => {
+  if (!date) return '';
+  
+  const hours = date.getHours();
   const minutes = date.getMinutes();
-  const period = hours >= 12 ? 'PM' : 'AM';
-
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-
-  return `${hours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  
+  if (timeFormat === '24') {
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  } else {
+    // 12-hour format
+    const period = hours >= 12 ? 'PM' : 'AM';
+    let displayHours = hours % 12;
+    if (displayHours === 0) displayHours = 12;
+    return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+  }
 };
 
 /**
- * Format a Date object to "H:MM AM/PM" format for prayer times
+ * Format a Date object for prayer times
  * @param {Date} date - Prayer time date object
+ * @param {string} timeFormat - '12' for 12-hour (AM/PM) or '24' for 24-hour format
  * @returns {string} Formatted prayer time string
  */
-export const formatPrayerTime = (date) => {
+export const formatPrayerTime = (date, timeFormat = '12') => {
   if (!date) return '';
-  return formatTime(date);
+  return formatTime(date, timeFormat);
 };
 
 /**
