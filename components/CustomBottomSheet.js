@@ -191,9 +191,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   handle: {
-    width: 40,
+    width: 30,
     height: 4,
-    backgroundColor: COLORS.text.tertiary,
+    backgroundColor: COLORS.text.faded,
     borderRadius: 2,
   },
   content: {

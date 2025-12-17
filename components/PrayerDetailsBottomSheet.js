@@ -30,12 +30,10 @@ const PrayerDetailsBottomSheet = ({ bottomSheetRef, selectedPrayer, notification
       enableDynamicSizing={true}
     >
       <BottomSheetView style={styles.contentContainer}>
-        <Text style={styles.prayerTitle}>{selectedPrayer.name}</Text>
-        <Text style={styles.prayerTime}>{selectedPrayer.time}</Text>
+        <Text style={styles.prayerTitle}>{selectedPrayer.name.toUpperCase()} NOTIFICATIONS</Text>
 
         {/* Notification Toggle Section */}
         <View style={styles.optionSection}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
 
           <TouchableOpacity
             style={[
@@ -97,25 +95,24 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.lg,
   },
   handleIndicator: {
-    backgroundColor: COLORS.text.tertiary,
-    width: 40,
+    backgroundColor: COLORS.text.faded,
+    width: 30,
   },
   contentContainer: {
     flex: 1,
     paddingHorizontal: SPACING.lg,
     paddingBottom: SPACING.lg,
+    paddingTop: SPACING.md,
   },
   prayerTitle: {
-    fontSize: 28,
+    fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
     color: COLORS.text.primary,
-    marginBottom: SPACING.xs,
-  },
-  prayerTime: {
-    fontSize: 20,
-    fontFamily: FONTS.weights.regular.primary,
-    color: COLORS.text.secondary,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.sm,
+    marginTop: SPACING.xxs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
   optionSection: {
     marginTop: SPACING.md,

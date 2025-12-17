@@ -532,8 +532,8 @@ const styles = StyleSheet.create({
     borderTopRightRadius: RADIUS.lg,
   },
   handleIndicator: {
-    backgroundColor: COLORS.text.tertiary,
-    width: 40,
+    backgroundColor: COLORS.text.faded,
+    width: 30,
   },
   contentContainer: {
     paddingHorizontal: SPACING.sm,
