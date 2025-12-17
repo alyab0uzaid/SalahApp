@@ -447,9 +447,6 @@ export default function App() {
         if (settings.customAngles?.ishaAngle !== null && settings.customAngles?.ishaAngle !== undefined) {
           params.ishaAngle = settings.customAngles.ishaAngle;
         }
-        if (settings.customAngles?.ishaInterval !== null && settings.customAngles?.ishaInterval !== undefined) {
-          params.ishaInterval = settings.customAngles.ishaInterval;
-        }
 
         // Apply high latitude rule
         if (settings.highLatitudeRule) {

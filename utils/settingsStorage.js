@@ -15,7 +15,6 @@ const DEFAULT_SETTINGS = {
   customAngles: {
     fajrAngle: null, // Custom Fajr angle (degrees) - null means use method default
     ishaAngle: null, // Custom Isha angle (degrees) - null means use method default
-    ishaInterval: null, // Custom Isha interval (minutes after Maghrib) - null means use method default
   },
   prayerAdjustments: {
     // Manual time adjustments in minutes (+/-)

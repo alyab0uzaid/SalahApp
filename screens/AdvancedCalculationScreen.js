@@ -20,7 +20,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
   // Custom angles
   const [fajrAngle, setFajrAngle] = useState('');
   const [ishaAngle, setIshaAngle] = useState('');
-  const [ishaInterval, setIshaInterval] = useState('');
 
   // High latitude rule
   const [highLatitudeRule, setHighLatitudeRule] = useState('MiddleOfTheNight');
@@ -50,9 +49,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
     if (settings.customAngles?.ishaAngle !== null && settings.customAngles?.ishaAngle !== undefined) {
       setIshaAngle(settings.customAngles.ishaAngle.toString());
     }
-    if (settings.customAngles?.ishaInterval !== null && settings.customAngles?.ishaInterval !== undefined) {
-      setIshaInterval(settings.customAngles.ishaInterval.toString());
-    }
 
     // Load high latitude rule
     setHighLatitudeRule(settings.highLatitudeRule || 'MiddleOfTheNight');
@@ -74,7 +70,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
       settings.customAngles = {
         fajrAngle: fajrAngle ? parseFloat(fajrAngle) : null,
         ishaAngle: ishaAngle ? parseFloat(ishaAngle) : null,
-        ishaInterval: ishaInterval ? parseFloat(ishaInterval) : null,
       };
 
       await saveSettings(settings);
@@ -137,7 +132,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
       // Reset UI state
       setFajrAngle('');
       setIshaAngle('');
-      setIshaInterval('');
       setHighLatitudeRule('MiddleOfTheNight');
 
       const resetAdj = {};
@@ -151,7 +145,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
       settings.customAngles = {
         fajrAngle: null,
         ishaAngle: null,
-        ishaInterval: null,
       };
       settings.highLatitudeRule = 'MiddleOfTheNight';
       settings.prayerAdjustments = {
@@ -243,21 +236,6 @@ export default function AdvancedCalculationScreen({ navigation, onSettingsChange
               />
             </View>
 
-            <View style={styles.separator} />
-
-            {/* Isha Interval */}
-            <View style={styles.inputRow}>
-              <Text style={styles.inputLabel}>Isha Interval (minutes)</Text>
-              <TextInput
-                style={styles.input}
-                value={ishaInterval}
-                onChangeText={setIshaInterval}
-                placeholder="e.g., 90"
-                placeholderTextColor={COLORS.text.disabled}
-                keyboardType="numeric"
-                returnKeyType="done"
-              />
-            </View>
           </View>
 
           <Pressable style={styles.saveButton} onPress={handleSaveCustomAngles}>

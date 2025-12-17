@@ -1,0 +1,71 @@
+diff --git a/node_modules/react-native-ruler-picker/lib/commonjs/components/RulerPicker.js b/node_modules/react-native-ruler-picker/lib/commonjs/components/RulerPicker.js
+index 62148c1..e6aa424 100644
+--- a/node_modules/react-native-ruler-picker/lib/commonjs/components/RulerPicker.js
++++ b/node_modules/react-native-ruler-picker/lib/commonjs/components/RulerPicker.js
+@@ -55,8 +55,9 @@ const RulerPicker = _ref => {
+     if (prevValue.current !== newStep) {
+       var _stepTextRef$current;
+       onValueChange === null || onValueChange === void 0 ? void 0 : onValueChange(newStep);
++      const displayValue = min < 0 && parseFloat(newStep) > 0 ? `+${newStep}` : newStep;
+       (_stepTextRef$current = stepTextRef.current) === null || _stepTextRef$current === void 0 ? void 0 : _stepTextRef$current.setNativeProps({
+-        text: newStep
++        text: displayValue
+       });
+     }
+     prevValue.current = newStep;
+@@ -154,7 +155,7 @@ const RulerPicker = _ref => {
+     }]
+   }, /*#__PURE__*/_react.default.createElement(_reactNative.TextInput, {
+     ref: stepTextRef,
+-    defaultValue: initialValue.toFixed(fractionDigits),
++    defaultValue: min < 0 && initialValue > 0 ? `+${initialValue.toFixed(fractionDigits)}` : initialValue.toFixed(fractionDigits),
+     style: [{
+       lineHeight: (valueTextStyle === null || valueTextStyle === void 0 ? void 0 : valueTextStyle.fontSize) ?? styles.valueText.fontSize
+     }, styles.valueText, valueTextStyle]
+diff --git a/node_modules/react-native-ruler-picker/lib/module/components/RulerPicker.js b/node_modules/react-native-ruler-picker/lib/module/components/RulerPicker.js
+index be03a9c..db24f39 100644
+--- a/node_modules/react-native-ruler-picker/lib/module/components/RulerPicker.js
++++ b/node_modules/react-native-ruler-picker/lib/module/components/RulerPicker.js
+@@ -47,8 +47,9 @@ export const RulerPicker = _ref => {
+     if (prevValue.current !== newStep) {
+       var _stepTextRef$current;
+       onValueChange === null || onValueChange === void 0 ? void 0 : onValueChange(newStep);
++      const displayValue = min < 0 && parseFloat(newStep) > 0 ? `+${newStep}` : newStep;
+       (_stepTextRef$current = stepTextRef.current) === null || _stepTextRef$current === void 0 ? void 0 : _stepTextRef$current.setNativeProps({
+-        text: newStep
++        text: displayValue
+       });
+     }
+     prevValue.current = newStep;
+@@ -146,7 +147,7 @@ export const RulerPicker = _ref => {
+     }]
+   }, /*#__PURE__*/React.createElement(TextInput, {
+     ref: stepTextRef,
+-    defaultValue: initialValue.toFixed(fractionDigits),
++    defaultValue: min < 0 && initialValue > 0 ? `+${initialValue.toFixed(fractionDigits)}` : initialValue.toFixed(fractionDigits),
+     style: [{
+       lineHeight: (valueTextStyle === null || valueTextStyle === void 0 ? void 0 : valueTextStyle.fontSize) ?? styles.valueText.fontSize
+     }, styles.valueText, valueTextStyle]
+diff --git a/node_modules/react-native-ruler-picker/src/components/RulerPicker.tsx b/node_modules/react-native-ruler-picker/src/components/RulerPicker.tsx
+index 8d1f0d1..b044549 100644
+--- a/node_modules/react-native-ruler-picker/src/components/RulerPicker.tsx
++++ b/node_modules/react-native-ruler-picker/src/components/RulerPicker.tsx
+@@ -168,7 +168,8 @@ export const RulerPicker = ({
+ 
+       if (prevValue.current !== newStep) {
+         onValueChange?.(newStep);
+-        stepTextRef.current?.setNativeProps({ text: newStep });
++        const displayValue = min < 0 && parseFloat(newStep) > 0 ? `+${newStep}` : newStep;
++        stepTextRef.current?.setNativeProps({ text: displayValue });
+       }
+ 
+       prevValue.current = newStep;
+@@ -324,7 +325,7 @@ export const RulerPicker = ({
+         >
+           <TextInput
+             ref={stepTextRef}
+-            defaultValue={initialValue.toFixed(fractionDigits)}
++            defaultValue={min < 0 && initialValue > 0 ? `+${initialValue.toFixed(fractionDigits)}` : initialValue.toFixed(fractionDigits)}
+             style={[
+               {
+                 lineHeight:

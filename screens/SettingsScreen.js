@@ -83,8 +83,8 @@ const styles = StyleSheet.create({
     paddingBottom: SPACING.xl,
   },
   title: {
-    fontSize: FONTS.sizes.xl,
-    fontFamily: FONTS.weights.medium.primary,
+    fontSize: 32,
+    fontFamily: FONTS.weights.bold.primary,
     color: COLORS.text.primary,
     marginBottom: SPACING.xl,
   },

@@ -14,12 +14,10 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
   // Custom angles
   const [fajrAngle, setFajrAngle] = useState('');
   const [ishaAngle, setIshaAngle] = useState('');
-  const [ishaInterval, setIshaInterval] = useState('');
 
   // Bottom sheet refs
   const fajrAngleSheetRef = useRef(null);
   const ishaAngleSheetRef = useRef(null);
-  const ishaIntervalSheetRef = useRef(null);
 
   // Current editing type
   const [editingType, setEditingType] = useState(null);
@@ -46,11 +44,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
     } else {
       setIshaAngle('15.0');
     }
-    if (settings.customAngles?.ishaInterval !== null && settings.customAngles?.ishaInterval !== undefined) {
-      setIshaInterval(settings.customAngles.ishaInterval.toString());
-    } else {
-      setIshaInterval('0');
-    }
   };
 
   const handleOpenBottomSheet = (type) => {
@@ -68,12 +61,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
       setTempValue(ishaAngle || '15');
       requestAnimationFrame(() => {
         ishaAngleSheetRef.current?.present();
-      });
-    } else if (type === 'interval') {
-      setEditingType('interval');
-      setTempValue(ishaInterval || '0');
-      requestAnimationFrame(() => {
-        ishaIntervalSheetRef.current?.present();
       });
     }
   };
@@ -103,14 +90,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
           ishaAngle: newValue && newValue !== '0' ? parseFloat(newValue) : null,
         };
         ishaAngleSheetRef.current?.dismiss();
-      } else if (type === 'interval') {
-        const newValue = tempValue;
-        setIshaInterval(newValue);
-        settings.customAngles = {
-          ...settings.customAngles,
-          ishaInterval: newValue && newValue !== '0' ? parseFloat(newValue) : null,
-        };
-        ishaIntervalSheetRef.current?.dismiss();
       }
 
       // Ensure customAngles object exists
@@ -118,7 +97,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
         settings.customAngles = {
           fajrAngle: null,
           ishaAngle: null,
-          ishaInterval: null,
         };
       }
 
@@ -137,33 +115,24 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
 
   const handleRulerValueChange = (value) => {
     // onValueChange returns a string
-    setTempValue(value);
+    // Remove any + signs for positive numbers (custom angles should not show + signs)
+    const cleanValue = value.toString().replace(/^\+/, '');
+    setTempValue(cleanValue);
     // Light haptic feedback on every value change
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   const getRulerConfig = () => {
-    if (editingType === 'fajr' || editingType === 'isha') {
-      // Angles: 9-18.5 degrees, step 0.5
-      // Range: 9 to 18.5 with step 0.5 = 20 values (indices 0-19)
-      // With library's index % 10 === 0 logic: tall ticks at 0 (9°) and 10 (14°)
-      // Note: Cannot get 5 tall ticks with this range and step due to library's modulo logic
-      return {
-        min: 9,
-        max: 18.5,
-        step: 0.5,
-        unit: '°',
-      };
-    } else if (editingType === 'interval') {
-      // Interval: 0-120 minutes, step 1
-      return {
-        min: 0,
-        max: 120,
-        step: 1,
-        unit: ' min',
-      };
-    }
-    return { min: 9, max: 18.5, step: 0.5, unit: '' };
+    // Angles: 9-18.5 degrees, step 0.5
+    // Range: 9 to 18.5 with step 0.5 = 20 values (indices 0-19)
+    // With library's index % 10 === 0 logic: tall ticks at 0 (9°) and 10 (14°)
+    // Note: Cannot get 5 tall ticks with this range and step due to library's modulo logic
+    return {
+      min: 9,
+      max: 18.5,
+      step: 0.5,
+      unit: '°',
+    };
   };
 
   // Backdrop component
@@ -180,7 +149,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
   const getTitle = () => {
     if (editingType === 'fajr') return 'Fajr Angle (degrees)';
     if (editingType === 'isha') return 'Isha Angle (degrees)';
-    if (editingType === 'interval') return 'Isha Interval (minutes)';
     return '';
   };
 
@@ -188,7 +156,8 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
     if (!value || value === '') {
       return '15.0';
     }
-    return value;
+    // Remove any + signs that the library might add
+    return value.toString().replace(/^\+/, '');
   };
 
   const handleReset = async () => {
@@ -200,12 +169,10 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
       // Reset all angles to 15.0
       setFajrAngle('15.0');
       setIshaAngle('15.0');
-      setIshaInterval('0');
       
       settings.customAngles = {
         fajrAngle: 15.0,
         ishaAngle: 15.0,
-        ishaInterval: 0,
       };
       
       await saveSettings(settings);
@@ -306,30 +273,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
               </View>
             </View>
           </Pressable>
-
-          <View style={styles.separator} />
-
-          {/* Isha Interval */}
-          <Pressable
-            style={styles.settingButton}
-            onPress={() => handleOpenBottomSheet('interval')}
-          >
-            <View style={styles.settingButtonContent}>
-              <Text style={styles.settingLabel}>Isha Interval</Text>
-              <View style={styles.settingValueRow}>
-                <Text style={styles.settingValue} numberOfLines={1}>
-                  {formatDisplayValue(ishaInterval)}
-                </Text>
-                <View style={styles.chevronContainer}>
-                  <MaterialCommunityIcons
-                    name="chevron-right"
-                    size={ICON_SIZES.md}
-                    color={COLORS.text.secondary}
-                  />
-                </View>
-              </View>
-            </View>
-          </Pressable>
         </View>
       </ScrollView>
 
@@ -355,7 +298,7 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
               initialValue={parseFloat(tempValue) || 15}
               onValueChange={handleRulerValueChange}
               unit={getRulerConfig().unit}
-              fractionDigits={editingType === 'interval' ? 0 : 1}
+              fractionDigits={1}
               height={80}
               width={Dimensions.get('window').width - (SPACING.lg * 2)}
               indicatorHeight={40}
@@ -405,57 +348,7 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
               initialValue={parseFloat(tempValue) || 15}
               onValueChange={handleRulerValueChange}
               unit={getRulerConfig().unit}
-              fractionDigits={editingType === 'interval' ? 0 : 1}
-              height={80}
-              width={Dimensions.get('window').width - (SPACING.lg * 2)}
-              indicatorHeight={40}
-              shortStepHeight={20}
-              longStepHeight={40}
-              indicatorColor={COLORS.text.primary}
-              valueTextStyle={{
-                color: COLORS.text.primary,
-                fontSize: 48,
-                fontWeight: 'bold',
-                fontFamily: FONTS.families.mono,
-              }}
-              unitTextStyle={{
-                color: COLORS.text.secondary,
-                fontSize: 32,
-                fontWeight: 'normal',
-              }}
-              shortStepColor={COLORS.text.tertiary}
-              longStepColor={COLORS.text.secondary}
-            />
-            </View>
-          </View>
-          <Pressable style={styles.bottomSheetButton} onPress={handleSaveAngle}>
-            <Text style={styles.bottomSheetButtonText}>Save</Text>
-          </Pressable>
-        </BottomSheetView>
-      </BottomSheetModal>
-
-      {/* Isha Interval Bottom Sheet */}
-      <BottomSheetModal
-        ref={ishaIntervalSheetRef}
-        enablePanDownToClose={true}
-        backgroundStyle={styles.bottomSheetBackground}
-        handleIndicatorStyle={styles.handleIndicator}
-        backdropComponent={renderBackdrop}
-        enableDynamicSizing={true}
-      >
-        <BottomSheetView style={styles.bottomSheetContent}>
-          <Text style={styles.bottomSheetTitle}>{getTitle()}</Text>
-          <View style={styles.rulerContainer}>
-            <View style={styles.rulerWrapper}>
-              <RulerPicker
-              key={editingType} // Force re-render when switching editing types
-              min={getRulerConfig().min}
-              max={getRulerConfig().max}
-              step={getRulerConfig().step}
-              initialValue={parseFloat(tempValue) || 15}
-              onValueChange={handleRulerValueChange}
-              unit={getRulerConfig().unit}
-              fractionDigits={editingType === 'interval' ? 0 : 1}
+              fractionDigits={1}
               height={80}
               width={Dimensions.get('window').width - (SPACING.lg * 2)}
               indicatorHeight={40}
