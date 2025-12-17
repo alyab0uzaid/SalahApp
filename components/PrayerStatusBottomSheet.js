@@ -1,11 +1,10 @@
-import React, { useMemo, useState, useImperativeHandle, forwardRef } from 'react';
+import React, { useState, useImperativeHandle, forwardRef } from 'react';
 import { StyleSheet, View, Pressable, Text } from 'react-native';
 import BottomSheet, { BottomSheetView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import * as Haptics from 'expo-haptics';
 import { COLORS, RADIUS, SPACING, FONTS } from '../constants/theme';
 
 const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
-  const snapPoints = useMemo(() => ['22%'], []);
   const bottomSheetRef = React.useRef(null);
 
   // Internal state for sheet data
@@ -79,12 +78,11 @@ const PrayerStatusBottomSheet = forwardRef(({ onConfirm, onCancel }, ref) => {
     <BottomSheet
       ref={bottomSheetRef}
       index={-1}
-      snapPoints={snapPoints}
       enablePanDownToClose={true}
       backgroundStyle={styles.bottomSheetBackground}
       handleIndicatorStyle={styles.handleIndicator}
       backdropComponent={renderBackdrop}
-      enableDynamicSizing={false}
+      enableDynamicSizing={true}
       onClose={onCancel}
     >
       <BottomSheetView style={styles.contentContainer}>

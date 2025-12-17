@@ -622,7 +622,7 @@ export default function App() {
 
   // Handle date picker press
   const handleDatePickerPress = () => {
-    datePickerBottomSheetRef.current?.snapToIndex(0);
+    datePickerBottomSheetRef.current?.open();
   };
 
   // Handle date selection
@@ -922,7 +922,7 @@ export default function App() {
       />
 
       <DatePickerBottomSheet
-        bottomSheetRef={datePickerBottomSheetRef}
+        ref={datePickerBottomSheetRef}
         selectedDate={selectedDate}
         onDateSelect={handleDateSelect}
         prayerStatus={prayerStatus}
