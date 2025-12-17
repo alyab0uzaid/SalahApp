@@ -1,6 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text, ActivityIndicator, Animated, Pressable } from 'react-native';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
@@ -19,6 +19,7 @@ import TrackerScreen from './screens/TrackerScreen';
 import SettingsScreen from './screens/SettingsScreen';
 import CalculationMethodScreen from './screens/CalculationMethodScreen';
 import CalculationMethodSelectScreen from './screens/CalculationMethodSelectScreen';
+import AdvancedCalculationScreen from './screens/AdvancedCalculationScreen';
 import AsrMethodScreen from './screens/AsrMethodScreen';
 import DisplayTimeScreen from './screens/DisplayTimeScreen';
 import TasbihScreen from './screens/TasbihScreen';
@@ -30,7 +31,7 @@ import ResetConfirmBottomSheet from './components/ResetConfirmBottomSheet';
 import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
-import { getSettings } from './utils/settingsStorage';
+import { getSettings, getPrayerStatus, savePrayerStatus, getMethodForCountry, updateSetting } from './utils/settingsStorage';
 
 const Tab = createBottomTabNavigator();
 const SettingsStack = createStackNavigator();
@@ -51,6 +52,10 @@ function SettingsStackNavigator({ onSettingsChange }) {
     return <CalculationMethodSelectScreen {...props} onSettingsChange={onSettingsChange} />;
   };
 
+  const AdvancedCalculationComponent = (props) => {
+    return <AdvancedCalculationScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
   const AsrMethodComponent = (props) => {
     return <AsrMethodScreen {...props} onSettingsChange={onSettingsChange} />;
   };
@@ -58,33 +63,38 @@ function SettingsStackNavigator({ onSettingsChange }) {
   const DisplayTimeComponent = (props) => {
     return <DisplayTimeScreen {...props} onSettingsChange={onSettingsChange} />;
   };
-  
+
   return (
-    <SettingsStack.Navigator 
+    <SettingsStack.Navigator
       screenOptions={{ headerShown: false }}
       initialRouteName="SettingsMain"
     >
-      <SettingsStack.Screen 
+      <SettingsStack.Screen
         name="SettingsMain"
         component={SettingsMainComponent}
         options={{ headerShown: false }}
       />
-      <SettingsStack.Screen 
+      <SettingsStack.Screen
         name="CalculationMethod"
         component={CalculationMethodComponent}
         options={{ headerShown: false }}
       />
-      <SettingsStack.Screen 
+      <SettingsStack.Screen
         name="CalculationMethodSelect"
         component={CalculationMethodSelectComponent}
         options={{ headerShown: false }}
       />
-      <SettingsStack.Screen 
+      <SettingsStack.Screen
+        name="AdvancedCalculation"
+        component={AdvancedCalculationComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen
         name="AsrMethod"
         component={AsrMethodComponent}
         options={{ headerShown: false }}
       />
-      <SettingsStack.Screen 
+      <SettingsStack.Screen
         name="DisplayTime"
         component={DisplayTimeComponent}
         options={{ headerShown: false }}
@@ -114,6 +124,7 @@ export default function App() {
   const [location, setLocation] = useState(null);
   const [locationError, setLocationError] = useState(null);
   const [locationName, setLocationName] = useState(null);
+  const [locationCountry, setLocationCountry] = useState(null); // Store country for auto-detection
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -140,6 +151,7 @@ export default function App() {
   const tasbihResetCallbackRef = useRef(null);
   const appStartTimeRef = useRef(Date.now());
   const [minLoadingComplete, setMinLoadingComplete] = useState(false);
+  const prayerStatusInitializedRef = useRef(false);
 
   // State for selected prayer in bottom sheet
   const [selectedPrayer, setSelectedPrayer] = useState(null);
@@ -159,9 +171,12 @@ export default function App() {
     dateFormat: 'MM/DD/YYYY',
     _updated: 0, // Internal field to force updates
   });
-  
+
   // Separate state for timeFormat to force updates
   const [timeFormat, setTimeFormat] = useState('12');
+
+  // Ref to track if settings update is from internal action (to prevent flicker)
+  const isInternalSettingsUpdateRef = useRef(false);
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
@@ -228,7 +243,7 @@ export default function App() {
 
         setLocation(locationData);
 
-        // Reverse geocode to get location name
+        // Reverse geocode to get location name and country
         try {
           const reverseGeocode = await Location.reverseGeocodeAsync({
             latitude: locationData.coords.latitude,
@@ -238,7 +253,29 @@ export default function App() {
           if (reverseGeocode && reverseGeocode.length > 0) {
             const address = reverseGeocode[0];
             const city = address.city || address.locality || address.subAdministrativeArea || address.administrativeArea || 'Unknown';
+            const country = address.country || null;
+
             setLocationName(city);
+            setLocationCountry(country);
+
+            // Auto-detect calculation method if enabled
+            const settings = await getSettings();
+            if (settings.calculationMethodAuto && country) {
+              const recommendedMethod = getMethodForCountry(country);
+
+              // Only update if different from current method
+              if (recommendedMethod !== settings.calculationMethod) {
+                await updateSetting('calculationMethod', recommendedMethod);
+
+                // Update local state to trigger prayer time recalculation
+                setCalculationSettings(prev => ({
+                  ...prev,
+                  calculationMethod: recommendedMethod,
+                }));
+
+                console.log(`[Auto-detect] Country: ${country}, Method: ${recommendedMethod}`);
+              }
+            }
           }
         } catch (geocodeError) {
           setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
@@ -258,7 +295,7 @@ export default function App() {
     fetchLocation();
   }, []);
 
-  // Load settings on mount
+  // Load settings and prayer status on mount
   useEffect(() => {
     const loadSettings = async () => {
       const settings = await getSettings();
@@ -281,7 +318,18 @@ export default function App() {
       const completed = settings.onboardingCompleted !== false; // Default to true if not set
       setOnboardingCompleted(completed);
     };
+    
+    const loadPrayerStatus = async () => {
+      const savedStatus = await getPrayerStatus();
+      setPrayerStatus(savedStatus);
+      // Mark as initialized after loading (with a small delay to ensure state is set)
+      setTimeout(() => {
+        prayerStatusInitializedRef.current = true;
+      }, 100);
+    };
+    
     loadSettings();
+    loadPrayerStatus();
   }, []);
 
   // Handle onboarding completion
@@ -322,61 +370,99 @@ export default function App() {
 
   // Calculate prayer times when location, selected date, or settings change
   useEffect(() => {
-    if (location && displaySettings) {
-      const today = new Date();
-      const isToday = selectedDate.getDate() === today.getDate() &&
-        selectedDate.getMonth() === today.getMonth() &&
-        selectedDate.getFullYear() === today.getFullYear();
+    const calculatePrayerTimes = async () => {
+      if (location && displaySettings) {
+        const today = new Date();
+        const isToday = selectedDate.getDate() === today.getDate() &&
+          selectedDate.getMonth() === today.getMonth() &&
+          selectedDate.getFullYear() === today.getFullYear();
 
-      // Use the separate timeFormat state
-      const currentTimeFormat = timeFormat || '12';
-      const timeFormatChanged = lastTimeFormatRef.current !== currentTimeFormat;
-      if (timeFormatChanged) {
-        lastTimeFormatRef.current = currentTimeFormat;
-        // Clear cache to force recalculation
-        if (isToday) {
-          todayPrayerTimesRef.current = null;
+        // Use the separate timeFormat state
+        const currentTimeFormat = timeFormat || '12';
+        const timeFormatChanged = lastTimeFormatRef.current !== currentTimeFormat;
+        if (timeFormatChanged) {
+          lastTimeFormatRef.current = currentTimeFormat;
+          // Clear cache to force recalculation
+          if (isToday) {
+            todayPrayerTimesRef.current = null;
+          }
         }
+
+        // Skip recalculation only if it's today, times are cached, format hasn't changed, and times match
+        if (isToday && todayPrayerTimesRef.current && !timeFormatChanged && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
+          return;
+        }
+
+        const coordinates = new Adhan.Coordinates(
+          location.coords.latitude,
+          location.coords.longitude
+        );
+
+        const params = getCalculationMethod(calculationSettings.calculationMethod);
+
+        // Set Asr calculation method (madhab)
+        if (calculationSettings.asrMethod === 'Hanafi') {
+          params.madhab = Adhan.Madhab.Hanafi;
+        } else {
+          params.madhab = Adhan.Madhab.Shafi;
+        }
+
+        // Apply custom angles if set
+        const settings = await getSettings();
+        if (settings.customAngles?.fajrAngle !== null && settings.customAngles?.fajrAngle !== undefined) {
+          params.fajrAngle = settings.customAngles.fajrAngle;
+        }
+        if (settings.customAngles?.ishaAngle !== null && settings.customAngles?.ishaAngle !== undefined) {
+          params.ishaAngle = settings.customAngles.ishaAngle;
+        }
+        if (settings.customAngles?.ishaInterval !== null && settings.customAngles?.ishaInterval !== undefined) {
+          params.ishaInterval = settings.customAngles.ishaInterval;
+        }
+
+        // Apply high latitude rule
+        if (settings.highLatitudeRule) {
+          const ruleMap = {
+            'MiddleOfTheNight': Adhan.HighLatitudeRule.MiddleOfTheNight,
+            'SeventhOfTheNight': Adhan.HighLatitudeRule.SeventhOfTheNight,
+            'TwilightAngle': Adhan.HighLatitudeRule.TwilightAngle,
+          };
+          params.highLatitudeRule = ruleMap[settings.highLatitudeRule] || Adhan.HighLatitudeRule.MiddleOfTheNight;
+        }
+
+        // Apply prayer adjustments
+        if (settings.prayerAdjustments) {
+          params.adjustments = {
+            fajr: settings.prayerAdjustments.Fajr || 0,
+            sunrise: settings.prayerAdjustments.Sunrise || 0,
+            dhuhr: settings.prayerAdjustments.Dhuhr || 0,
+            asr: settings.prayerAdjustments.Asr || 0,
+            maghrib: settings.prayerAdjustments.Maghrib || 0,
+            isha: settings.prayerAdjustments.Isha || 0,
+          };
+        }
+
+        const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
+
+        const formattedTimes = [
+          formatPrayerTime(prayerTimesData.fajr, currentTimeFormat),
+          formatPrayerTime(prayerTimesData.sunrise, currentTimeFormat),
+          formatPrayerTime(prayerTimesData.dhuhr, currentTimeFormat),
+          formatPrayerTime(prayerTimesData.asr, currentTimeFormat),
+          formatPrayerTime(prayerTimesData.maghrib, currentTimeFormat),
+          formatPrayerTime(prayerTimesData.isha, currentTimeFormat),
+        ];
+
+        if (isToday) {
+          todayPrayerTimesRef.current = formattedTimes;
+        }
+
+        console.log('[App] Prayer times recalculated with format:', currentTimeFormat);
+        setPrayerTimes(formattedTimes);
+        setLoading(false);
       }
+    };
 
-      // Skip recalculation only if it's today, times are cached, format hasn't changed, and times match
-      if (isToday && todayPrayerTimesRef.current && !timeFormatChanged && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
-        return;
-      }
-
-      const coordinates = new Adhan.Coordinates(
-        location.coords.latitude,
-        location.coords.longitude
-      );
-
-      const params = getCalculationMethod(calculationSettings.calculationMethod);
-      
-      // Set Asr calculation method (madhab)
-      if (calculationSettings.asrMethod === 'Hanafi') {
-        params.madhab = Adhan.Madhab.Hanafi;
-      } else {
-        params.madhab = Adhan.Madhab.Shafi;
-      }
-
-      const prayerTimesData = new Adhan.PrayerTimes(coordinates, selectedDate, params);
-
-      const formattedTimes = [
-        formatPrayerTime(prayerTimesData.fajr, currentTimeFormat),
-        formatPrayerTime(prayerTimesData.sunrise, currentTimeFormat),
-        formatPrayerTime(prayerTimesData.dhuhr, currentTimeFormat),
-        formatPrayerTime(prayerTimesData.asr, currentTimeFormat),
-        formatPrayerTime(prayerTimesData.maghrib, currentTimeFormat),
-        formatPrayerTime(prayerTimesData.isha, currentTimeFormat),
-      ];
-
-      if (isToday) {
-        todayPrayerTimesRef.current = formattedTimes;
-      }
-
-      console.log('[App] Prayer times recalculated with format:', currentTimeFormat);
-      setPrayerTimes(formattedTimes);
-      setLoading(false);
-    }
+    calculatePrayerTimes();
   }, [location, selectedDate, calculationSettings, timeFormat]);
 
   // Update current time every 10 seconds
@@ -442,6 +528,49 @@ export default function App() {
     }).start();
   };
 
+  // Handle settings change - memoized to prevent unnecessary re-renders
+  const handleSettingsChange = useCallback(async () => {
+    try {
+      const settings = await getSettings();
+      const newTimeFormat = settings.timeFormat || '12';
+      const newDateFormat = settings.dateFormat || 'MM/DD/YYYY';
+      const newCalculationMethod = settings.calculationMethod || 'MuslimWorldLeague';
+      const newAsrMethod = settings.asrMethod || 'Standard';
+
+      console.log('[Settings] Updating timeFormat to:', newTimeFormat);
+
+      // Only update calculationSettings if values actually changed
+      setCalculationSettings(prev => {
+        if (prev.calculationMethod !== newCalculationMethod || prev.asrMethod !== newAsrMethod) {
+          return {
+            calculationMethod: newCalculationMethod,
+            asrMethod: newAsrMethod,
+          };
+        }
+        return prev; // Return same reference if no change
+      });
+
+      // Only update displaySettings if values actually changed
+      setDisplaySettings(prev => {
+        if (prev.timeFormat !== newTimeFormat || prev.dateFormat !== newDateFormat) {
+          return {
+            timeFormat: newTimeFormat,
+            dateFormat: newDateFormat,
+            _updated: Date.now(),
+          };
+        }
+        return prev; // Return same reference if no change
+      });
+
+      // Only update timeFormat if it changed
+      setTimeFormat(prev => prev !== newTimeFormat ? newTimeFormat : prev);
+
+      console.log('[Settings] displaySettings updated, new timeFormat:', newTimeFormat);
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  }, []);
+
   // Handle prayer row press
   const handlePrayerPress = (prayer) => {
     setSelectedPrayer(prayer);
@@ -504,6 +633,18 @@ export default function App() {
       return newState;
     });
   };
+
+  // Save prayer status to storage whenever it changes
+  useEffect(() => {
+    // Skip saving on initial load (when data is being loaded from storage)
+    if (!prayerStatusInitializedRef.current) {
+      prayerStatusInitializedRef.current = true;
+      return;
+    }
+    
+    // Save prayer status whenever it changes after initial load
+    savePrayerStatus(prayerStatus);
+  }, [prayerStatus]);
 
   // Handle swipe to confirm
   const handleSwipeToConfirm = (prayerName, prayerTime, direction) => {
@@ -723,36 +864,6 @@ export default function App() {
                     </Tab.Screen>
           <Tab.Screen name="Settings" options={{ headerShown: false }}>
             {(props) => {
-              const handleSettingsChange = async () => {
-                try {
-                  const settings = await getSettings();
-                  const timeFormat = settings.timeFormat || '12';
-                  const dateFormat = settings.dateFormat || 'MM/DD/YYYY';
-                  
-                  console.log('[Settings] Updating timeFormat to:', timeFormat);
-                  
-                  setCalculationSettings({
-                    calculationMethod: settings.calculationMethod || 'MuslimWorldLeague',
-                    asrMethod: settings.asrMethod || 'Standard',
-                  });
-                  
-                  // Force update by always creating a new object with a timestamp
-                  // This ensures React detects the change
-                  setDisplaySettings({
-                    timeFormat: timeFormat,
-                    dateFormat: dateFormat,
-                    _updated: Date.now(), // Force new reference
-                  });
-                  
-                  // Update the separate timeFormat state to trigger useEffects immediately
-                  setTimeFormat(timeFormat);
-
-                  console.log('[Settings] displaySettings updated, new timeFormat:', timeFormat);
-                } catch (error) {
-                  console.error('Error loading settings:', error);
-                }
-              };
-
               // Reload settings when Settings tab comes into focus
               React.useEffect(() => {
                 const unsubscribe = props.navigation?.addListener('focus', () => {

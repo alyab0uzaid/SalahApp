@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,15 +9,35 @@ import { getSettings, updateSetting } from '../utils/settingsStorage';
 export default function DisplayTimeScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
   const [use24Hour, setUse24Hour] = useState(false);
+  const isInitialLoadRef = useRef(true);
 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
+    isInitialLoadRef.current = false;
   }, []);
+
+  // Reload settings when screen comes into focus (to reflect changes made elsewhere)
+  // But only update state if value actually changed to prevent toggle jumping
+  useEffect(() => {
+    const unsubscribe = navigation?.addListener('focus', () => {
+      if (!isInitialLoadRef.current) {
+        loadSettings();
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   const loadSettings = async () => {
     const settings = await getSettings();
-    setUse24Hour(settings.timeFormat === '24');
+    const newValue = settings.timeFormat === '24';
+    // Only update state if value actually changed to prevent toggle jumping
+    setUse24Hour(prevValue => {
+      if (prevValue !== newValue) {
+        return newValue;
+      }
+      return prevValue; // Return same value - React won't re-render
+    });
   };
 
   const handleTimeFormatToggle = async (value) => {

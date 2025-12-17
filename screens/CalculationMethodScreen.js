@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Switch } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings, updateSetting } from '../utils/settingsStorage';
+import { getSettings, updateSetting, getMethodForCountry } from '../utils/settingsStorage';
+import * as Location from 'expo-location';
 
 // Method label mapping
 const METHOD_LABELS = {
@@ -26,34 +27,111 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
   const insets = useSafeAreaInsets();
   const [calculationMethod, setCalculationMethod] = useState('MuslimWorldLeague');
   const [autoMode, setAutoMode] = useState(false);
+  const isUpdatingRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
+  const lastUpdateTimeRef = useRef(0);
 
   // Load settings on mount
   useEffect(() => {
     loadSettings();
+    isInitialLoadRef.current = false;
   }, []);
 
-  // Reload settings when screen comes into focus
+  // Reload settings when screen comes into focus (but skip if we recently updated)
   useEffect(() => {
     const unsubscribe = navigation?.addListener('focus', () => {
-      loadSettings();
+      if (!isInitialLoadRef.current) {
+        const timeSinceLastUpdate = Date.now() - lastUpdateTimeRef.current;
+        // Only reload if more than 1 second has passed since last update
+        if (timeSinceLastUpdate > 1000 && !isUpdatingRef.current) {
+          loadSettings();
+        }
+      }
     });
     return unsubscribe;
   }, [navigation]);
 
   const loadSettings = async () => {
+    if (isUpdatingRef.current) return; // Don't load if we're updating
+
     const settings = await getSettings();
-    setCalculationMethod(settings.calculationMethod || 'MuslimWorldLeague');
-    setAutoMode(settings.calculationMethodAuto || false);
+    const newMethod = settings.calculationMethod || 'MuslimWorldLeague';
+    const newAutoMode = settings.calculationMethodAuto || false;
+
+    // Only update state if values actually changed to prevent flickering
+    setCalculationMethod(prevMethod => prevMethod !== newMethod ? newMethod : prevMethod);
+    setAutoMode(prevAutoMode => prevAutoMode !== newAutoMode ? newAutoMode : prevAutoMode);
   };
 
   const handleAutoToggle = async (value) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      // Mark that we're updating to prevent reload during update
+      isUpdatingRef.current = true;
+      lastUpdateTimeRef.current = Date.now();
+
+      // Update local state immediately for responsive UI
       setAutoMode(value);
+
+      // Save to storage
       await updateSetting('calculationMethodAuto', value);
-      // Don't call onSettingsChange - it causes unnecessary re-renders
+
+      // If enabling auto mode, detect method from location
+      if (value) {
+        try {
+          // Get current location
+          const locationData = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
+
+          // Reverse geocode to get country
+          const reverseGeocode = await Location.reverseGeocodeAsync({
+            latitude: locationData.coords.latitude,
+            longitude: locationData.coords.longitude,
+          });
+
+          if (reverseGeocode && reverseGeocode.length > 0) {
+            const address = reverseGeocode[0];
+            const country = address.country;
+
+            if (country) {
+              const recommendedMethod = getMethodForCountry(country);
+
+              // Update calculation method immediately in state
+              setCalculationMethod(recommendedMethod);
+
+              // Save to storage
+              await updateSetting('calculationMethod', recommendedMethod);
+
+              console.log(`[Auto-detect] Country: ${country}, Method: ${recommendedMethod}`);
+            }
+          }
+        } catch (error) {
+          console.error('Error auto-detecting calculation method:', error);
+        }
+      }
+
+      // Defer settings change callback to prevent flicker
+      // Wait for state updates to commit before triggering parent reload
+      setTimeout(() => {
+        // Update timestamp again to extend the protection window
+        lastUpdateTimeRef.current = Date.now();
+
+        if (onSettingsChange) {
+          onSettingsChange();
+        }
+
+        // Keep updating flag set for a full second after callback
+        setTimeout(() => {
+          isUpdatingRef.current = false;
+        }, 1000);
+      }, 150);
     } catch (error) {
       console.error('Error updating auto mode:', error);
+      // Revert on error
+      setAutoMode(!value);
+      isUpdatingRef.current = false;
     }
   };
 
@@ -134,6 +212,27 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
             </View>
           </Pressable>
         </View>
+
+        {/* Advanced Settings Link */}
+        <Pressable
+          style={styles.advancedLink}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            navigation?.navigate('AdvancedCalculation');
+          }}
+        >
+          <MaterialCommunityIcons
+            name="tune-variant"
+            size={ICON_SIZES.md}
+            color={COLORS.text.secondary}
+          />
+          <Text style={styles.advancedLinkText}>Advanced Settings</Text>
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={ICON_SIZES.md}
+            color={COLORS.text.disabled}
+          />
+        </Pressable>
       </ScrollView>
     </View>
   );
@@ -236,6 +335,23 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginLeft: SPACING.md,
+  },
+  advancedLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    marginTop: SPACING.md,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: RADIUS.sm,
+  },
+  advancedLinkText: {
+    flex: 1,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.secondary,
+    marginLeft: SPACING.sm,
   },
 });
 
