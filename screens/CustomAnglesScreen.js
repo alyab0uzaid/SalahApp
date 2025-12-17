@@ -366,6 +366,7 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
                 color: COLORS.text.primary,
                 fontSize: 48,
                 fontWeight: 'bold',
+                fontFamily: FONTS.families.mono,
               }}
               unitTextStyle={{
                 color: COLORS.text.secondary,
@@ -415,6 +416,7 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
                 color: COLORS.text.primary,
                 fontSize: 48,
                 fontWeight: 'bold',
+                fontFamily: FONTS.families.mono,
               }}
               unitTextStyle={{
                 color: COLORS.text.secondary,
@@ -464,6 +466,7 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
                 color: COLORS.text.primary,
                 fontSize: 48,
                 fontWeight: 'bold',
+                fontFamily: FONTS.families.mono,
               }}
               unitTextStyle={{
                 color: COLORS.text.secondary,
