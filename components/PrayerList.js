@@ -229,12 +229,6 @@ const PrayerListComponent = ({ prayerTimes, prayerNames, currentTime, style, sel
     >
       {prayerNames.map((name, index) => {
         const time = prayerTimes[index];
-        const isSunrise = name.toLowerCase() === 'sunrise';
-        
-        // Skip sunrise
-        if (isSunrise) {
-          return null;
-          }
 
         const { isPast, isCurrent } = getPrayerStatus(index);
         const prayerStatusValue = getPrayerStatusForDate(name);

@@ -129,6 +129,8 @@ const DatePickerBottomSheet = forwardRef(({ selectedDate, onDateSelect, prayerSt
   // Expose methods to parent via ref
   useImperativeHandle(ref, () => ({
     open: () => {
+      // Reset picker state when opening
+      setShowMonthYearPicker(false);
       if (selectedDate) {
         setDisplayMonth(selectedDate);
         setUseSelectedDate(true);
@@ -157,6 +159,8 @@ const DatePickerBottomSheet = forwardRef(({ selectedDate, onDateSelect, prayerSt
     },
     snapToIndex: (index) => {
       if (index >= 0) {
+        // Reset picker state when opening
+        setShowMonthYearPicker(false);
         if (selectedDate) {
           setDisplayMonth(selectedDate);
           setUseSelectedDate(true);
@@ -430,6 +434,16 @@ const DatePickerBottomSheet = forwardRef(({ selectedDate, onDateSelect, prayerSt
 
   if (!selectedDate) return null;
 
+  // Handle sheet close - reset picker state
+  const handleSheetClose = () => {
+    setShowMonthYearPicker(false);
+    if (selectedDate) {
+      setDisplayMonth(selectedDate);
+      setUseSelectedDate(true);
+      setSheetKey(prev => prev + 1);
+    }
+  };
+
   return (
     <BottomSheet
       ref={bottomSheetRef}
@@ -439,6 +453,7 @@ const DatePickerBottomSheet = forwardRef(({ selectedDate, onDateSelect, prayerSt
       handleIndicatorStyle={styles.handleIndicator}
       backdropComponent={renderBackdrop}
       enableDynamicSizing={true}
+      onClose={handleSheetClose}
     >
       <BottomSheetView style={styles.contentContainer}>
         {renderHeader()}

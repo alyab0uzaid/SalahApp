@@ -186,7 +186,6 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
 
         const { isPast, isCurrent } = getPrayerStatus(index);
         const hasNotification = notifications[name];
-        const isSunrise = name.toLowerCase() === 'sunrise';
 
         return (
           <Pressable
@@ -197,7 +196,7 @@ const SimplePrayerListComponent = ({ prayerTimes, prayerNames, currentTime, styl
             ]}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              if (onPrayerPress && !isSunrise) {
+              if (onPrayerPress) {
                 onPrayerPress({ name, time, index });
               }
             }}

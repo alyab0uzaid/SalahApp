@@ -36,6 +36,7 @@ import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
 import { getSettings, getPrayerStatus, savePrayerStatus, getMethodForCountry, updateSetting } from './utils/settingsStorage';
+import { requestNotificationPermissions, schedulePrayerNotifications, sendTestNotification } from './utils/notifications';
 
 const Tab = createBottomTabNavigator();
 const SettingsStack = createStackNavigator();
@@ -496,6 +497,35 @@ export default function App() {
     calculatePrayerTimes();
   }, [location, selectedDate, calculationSettings, timeFormat]);
 
+  // Schedule notifications when prayer times change (for today)
+  // Only schedule if permissions are granted and we have prayer times
+  useEffect(() => {
+    const scheduleNotifications = async () => {
+      try {
+        // Check if permissions are granted first
+        const { getPermissionsAsync } = require('expo-notifications');
+        const { status } = await getPermissionsAsync();
+        
+        if (status !== 'granted') {
+          return; // Don't schedule if permissions not granted
+        }
+
+        const today = new Date();
+        const isToday = selectedDate && selectedDate.getDate() === today.getDate() &&
+          selectedDate.getMonth() === today.getMonth() &&
+          selectedDate.getFullYear() === today.getFullYear();
+
+        if (isToday && prayerTimes.length > 0 && prayerNames.length > 0) {
+          schedulePrayerNotifications(prayerTimes, prayerNames, notifications, selectedDate);
+        }
+      } catch (error) {
+        console.warn('Error checking notification permissions:', error);
+      }
+    };
+
+    scheduleNotifications();
+  }, [prayerTimes, selectedDate, prayerNames, notifications]);
+
   // Update current time every 10 seconds
   useEffect(() => {
     console.log('[App] Current time format changed to:', timeFormat);
@@ -611,12 +641,17 @@ export default function App() {
   };
 
   // Handle notification toggle
-  const handleNotificationToggle = (enabled) => {
+  const handleNotificationToggle = async (enabled) => {
     if (selectedPrayer) {
       setNotifications(prev => ({
         ...prev,
         [selectedPrayer.name]: enabled
       }));
+
+      // Send a test notification immediately when enabling
+      if (enabled && selectedPrayer.time) {
+        await sendTestNotification(selectedPrayer.name, selectedPrayer.time);
+      }
     }
   };
 

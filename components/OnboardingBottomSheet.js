@@ -14,14 +14,7 @@ import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import { updateSetting } from '../utils/settingsStorage';
-
-// Try to import expo-notifications, but handle if it's not installed
-let Notifications = null;
-try {
-  Notifications = require('expo-notifications');
-} catch (error) {
-  console.warn('expo-notifications not available:', error);
-}
+import { requestNotificationPermissions } from '../utils/notifications';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -66,18 +59,14 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
     const locationStatus = await Location.getForegroundPermissionsAsync();
     setLocationPermission(locationStatus.status === 'granted');
 
-    // Check notification permission (if available)
-    if (Notifications) {
-      try {
-        const notificationStatus = await Notifications.getPermissionsAsync();
-        setNotificationPermission(notificationStatus.status === 'granted');
-      } catch (error) {
-        console.warn('Error checking notification permission:', error);
-        setNotificationPermission(false);
-      }
-    } else {
-      // If notifications not available, skip this step
-      setNotificationPermission(true);
+    // Check notification permission
+    try {
+      const { getPermissionsAsync } = require('expo-notifications');
+      const notificationStatus = await getPermissionsAsync();
+      setNotificationPermission(notificationStatus.status === 'granted');
+    } catch (error) {
+      console.warn('Error checking notification permission:', error);
+      setNotificationPermission(false);
     }
   };
 
@@ -100,15 +89,11 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
       if (notificationPermission === true) {
         return;
       }
-      if (Notifications) {
-        const { status } = await Notifications.requestPermissionsAsync();
-        setNotificationPermission(status === 'granted');
-      } else {
-        setNotificationPermission(true);
-      }
+      const granted = await requestNotificationPermissions();
+      setNotificationPermission(granted);
     } catch (error) {
       console.error('Error requesting notification permission:', error);
-      setNotificationPermission(true);
+      setNotificationPermission(false);
     }
   };
 
