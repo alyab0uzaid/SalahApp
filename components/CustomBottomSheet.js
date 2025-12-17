@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sheet: {
     position: 'absolute',

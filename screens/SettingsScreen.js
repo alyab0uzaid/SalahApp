@@ -1,57 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings } from '../utils/settingsStorage';
-import CalculationMethodScreen from './CalculationMethodScreen';
-import AsrMethodScreen from './AsrMethodScreen';
-
-// Method label mapping
-const METHOD_LABELS = {
-  'MuslimWorldLeague': 'Muslim World League',
-  'IslamicSocietyOfNorthAmerica': 'Islamic Society of North America (ISNA)',
-  'Egyptian': 'Egyptian General Authority of Survey',
-  'UmmAlQura': 'Umm al-Qura University, Makkah',
-  'UniversityOfIslamicSciencesKarachi': 'University of Islamic Sciences, Karachi',
-  'InstituteOfGeophysicsUniversityOfTehran': 'Institute of Geophysics, University of Tehran',
-  'Shia': 'Shia Ithna Ashari (Ja\'fari)',
-  'Gulf': 'Gulf Region',
-  'Kuwait': 'Kuwait',
-  'Qatar': 'Qatar',
-  'Singapore': 'Singapore',
-  'Other': 'Other',
-};
-
-const ASR_LABELS = {
-  'Standard': 'Standard (Shafi\'i, Maliki, Hanbali)',
-  'Hanafi': 'Hanafi',
-};
 
 export default function SettingsScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
-  const [calculationMethod, setCalculationMethod] = useState('MuslimWorldLeague');
-  const [asrMethod, setAsrMethod] = useState('Standard');
-
-  // Load settings on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  // Reload settings when screen comes into focus
-  useEffect(() => {
-    const unsubscribe = navigation?.addListener('focus', () => {
-      loadSettings();
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const loadSettings = async () => {
-    const settings = await getSettings();
-    setCalculationMethod(settings.calculationMethod || 'MuslimWorldLeague');
-    setAsrMethod(settings.asrMethod || 'Standard');
-  };
 
   // Main settings screen
   return (
@@ -64,29 +19,10 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
         {/* Settings Header */}
         <Text style={styles.title}>Settings</Text>
 
-        {/* Prayers Section */}
+        {/* Prayer Times Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>PRAYERS</Text>
+          <Text style={styles.sectionTitle}>PRAYER TIMES</Text>
           <View style={styles.settingsContainer}>
-            <Pressable
-              style={styles.settingButton}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation?.navigate('AsrMethod');
-              }}
-            >
-              <View style={styles.settingButtonContent}>
-                <Text style={styles.settingLabel}>Asr Calculation</Text>
-                <MaterialCommunityIcons
-                  name="chevron-right"
-                  size={ICON_SIZES.md}
-                  color={COLORS.text.secondary}
-                />
-              </View>
-            </Pressable>
-            
-            <View style={styles.separator} />
-            
             <Pressable
               style={styles.settingButton}
               onPress={() => {
@@ -95,7 +31,7 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
               }}
             >
               <View style={styles.settingButtonContent}>
-                <Text style={styles.settingLabel}>Calculation Method</Text>
+                <Text style={styles.settingLabel}>Calculation</Text>
                 <MaterialCommunityIcons
                   name="chevron-right"
                   size={ICON_SIZES.md}

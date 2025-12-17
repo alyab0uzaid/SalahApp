@@ -6,6 +6,7 @@ import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold }
 import { SpaceMono_400Regular, SpaceMono_700Bold } from '@expo-google-fonts/space-mono';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -20,6 +21,9 @@ import SettingsScreen from './screens/SettingsScreen';
 import CalculationMethodScreen from './screens/CalculationMethodScreen';
 import CalculationMethodSelectScreen from './screens/CalculationMethodSelectScreen';
 import AdvancedCalculationScreen from './screens/AdvancedCalculationScreen';
+import HighLatitudeRuleScreen from './screens/HighLatitudeRuleScreen';
+import CustomAnglesScreen from './screens/CustomAnglesScreen';
+import PrayerAdjustmentsScreen from './screens/PrayerAdjustmentsScreen';
 import AsrMethodScreen from './screens/AsrMethodScreen';
 import DisplayTimeScreen from './screens/DisplayTimeScreen';
 import TasbihScreen from './screens/TasbihScreen';
@@ -56,6 +60,18 @@ function SettingsStackNavigator({ onSettingsChange }) {
     return <AdvancedCalculationScreen {...props} onSettingsChange={onSettingsChange} />;
   };
 
+  const HighLatitudeRuleComponent = (props) => {
+    return <HighLatitudeRuleScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
+  const CustomAnglesComponent = (props) => {
+    return <CustomAnglesScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
+  const PrayerAdjustmentsComponent = (props) => {
+    return <PrayerAdjustmentsScreen {...props} onSettingsChange={onSettingsChange} />;
+  };
+
   const AsrMethodComponent = (props) => {
     return <AsrMethodScreen {...props} onSettingsChange={onSettingsChange} />;
   };
@@ -87,6 +103,21 @@ function SettingsStackNavigator({ onSettingsChange }) {
       <SettingsStack.Screen
         name="AdvancedCalculation"
         component={AdvancedCalculationComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen
+        name="HighLatitudeRule"
+        component={HighLatitudeRuleComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen
+        name="CustomAngles"
+        component={CustomAnglesComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen
+        name="PrayerAdjustments"
+        component={PrayerAdjustmentsComponent}
         options={{ headerShown: false }}
       />
       <SettingsStack.Screen
@@ -708,7 +739,8 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer>
+      <BottomSheetModalProvider>
+        <NavigationContainer>
         <Tab.Navigator
           screenOptions={({ route }) => ({
             headerShown: false,
@@ -913,7 +945,7 @@ export default function App() {
                     resetConfirmBottomSheetRef.current?.close();
                   }}
                 />
-
+      </BottomSheetModalProvider>
     </GestureHandlerRootView>
             );
           })()}

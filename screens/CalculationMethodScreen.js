@@ -23,9 +23,22 @@ const METHOD_LABELS = {
   'Other': 'Other',
 };
 
+const ASR_LABELS = {
+  'Standard': 'Standard',
+  'Hanafi': 'Hanafi',
+};
+
+const HIGH_LATITUDE_RULE_LABELS = {
+  'MiddleOfTheNight': 'Middle of the Night',
+  'SeventhOfTheNight': 'Seventh of the Night',
+  'TwilightAngle': 'Twilight Angle',
+};
+
 export default function CalculationMethodScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
   const [calculationMethod, setCalculationMethod] = useState('MuslimWorldLeague');
+  const [asrMethod, setAsrMethod] = useState('Standard');
+  const [highLatitudeRule, setHighLatitudeRule] = useState('MiddleOfTheNight');
   const [autoMode, setAutoMode] = useState(false);
   const isUpdatingRef = useRef(false);
   const isInitialLoadRef = useRef(true);
@@ -56,10 +69,14 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
 
     const settings = await getSettings();
     const newMethod = settings.calculationMethod || 'MuslimWorldLeague';
+    const newAsrMethod = settings.asrMethod || 'Standard';
+    const newHighLatitudeRule = settings.highLatitudeRule || 'MiddleOfTheNight';
     const newAutoMode = settings.calculationMethodAuto || false;
 
     // Only update state if values actually changed to prevent flickering
     setCalculationMethod(prevMethod => prevMethod !== newMethod ? newMethod : prevMethod);
+    setAsrMethod(prevAsrMethod => prevAsrMethod !== newAsrMethod ? newAsrMethod : prevAsrMethod);
+    setHighLatitudeRule(prevRule => prevRule !== newHighLatitudeRule ? newHighLatitudeRule : prevRule);
     setAutoMode(prevAutoMode => prevAutoMode !== newAutoMode ? newAutoMode : prevAutoMode);
   };
 
@@ -73,6 +90,9 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
 
       // Update local state immediately for responsive UI
       setAutoMode(value);
+
+      // Wait a frame to ensure state update is committed
+      await new Promise(resolve => requestAnimationFrame(resolve));
 
       // Save to storage
       await updateSetting('calculationMethodAuto', value);
@@ -101,6 +121,9 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
               // Update calculation method immediately in state
               setCalculationMethod(recommendedMethod);
 
+              // Wait for state update
+              await new Promise(resolve => requestAnimationFrame(resolve));
+
               // Save to storage
               await updateSetting('calculationMethod', recommendedMethod);
 
@@ -112,21 +135,21 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
         }
       }
 
-      // Defer settings change callback to prevent flicker
-      // Wait for state updates to commit before triggering parent reload
+      // Wait for all storage writes to complete before triggering callback
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // Update timestamp to extend protection window
+      lastUpdateTimeRef.current = Date.now();
+
+      // Trigger parent callback
+      if (onSettingsChange) {
+        onSettingsChange();
+      }
+
+      // Keep updating flag set to prevent any reloads during this time
       setTimeout(() => {
-        // Update timestamp again to extend the protection window
-        lastUpdateTimeRef.current = Date.now();
-
-        if (onSettingsChange) {
-          onSettingsChange();
-        }
-
-        // Keep updating flag set for a full second after callback
-        setTimeout(() => {
-          isUpdatingRef.current = false;
-        }, 1000);
-      }, 150);
+        isUpdatingRef.current = false;
+      }, 1500);
     } catch (error) {
       console.error('Error updating auto mode:', error);
       // Revert on error
@@ -152,7 +175,7 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
             color={COLORS.text.primary}
           />
         </Pressable>
-        <Text style={styles.headerTitle}>Calculation Method</Text>
+        <Text style={styles.headerTitle}>Calculation</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -161,78 +184,175 @@ export default function CalculationMethodScreen({ navigation, onSettingsChange }
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.settingsContainer}>
-          {/* Set Automatically Toggle */}
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Set automatically</Text>
-            <Switch
-              value={autoMode}
-              onValueChange={handleAutoToggle}
-              trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: '#4CAF50' }}
-              thumbColor={autoMode ? COLORS.text.primary : 'rgba(255, 255, 255, 0.5)'}
-            />
-          </View>
+        {/* METHOD Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>METHOD</Text>
+          <View style={styles.settingsContainer}>
+            {/* Automatic Calculation Toggle */}
+            <View style={styles.settingRow}>
+              <Text style={styles.settingLabel}>Automatic Calculation</Text>
+              <Switch
+                value={autoMode}
+                onValueChange={handleAutoToggle}
+                trackColor={{ false: 'rgba(255, 255, 255, 0.2)', true: '#4CAF50' }}
+                thumbColor={autoMode ? COLORS.text.primary : 'rgba(255, 255, 255, 0.5)'}
+              />
+            </View>
 
-          <View style={styles.separator} />
+            <View style={styles.separator} />
 
-          {/* Method Selection Button */}
-          <Pressable
-            style={styles.settingButton}
-            onPress={() => {
-              if (!autoMode) {
+            {/* Calculation Method Button */}
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                if (!autoMode) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation?.navigate('CalculationMethodSelect');
+                }
+              }}
+              disabled={autoMode}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={styles.settingLabel}>Calculation Method</Text>
+                <View style={styles.settingValueRow}>
+                  <Text
+                    style={[
+                      styles.settingValue,
+                      autoMode && styles.settingValueDisabled
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {METHOD_LABELS[calculationMethod] || calculationMethod}
+                  </Text>
+                  <View style={[styles.chevronContainer, { opacity: autoMode ? 0 : 1 }]}>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={ICON_SIZES.md}
+                      color={COLORS.text.secondary}
+                    />
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+
+            <View style={styles.separator} />
+
+            {/* Asr Method Button */}
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                navigation?.navigate('CalculationMethodSelect');
-              }
-            }}
-            disabled={autoMode}
-          >
-            <View style={styles.settingButtonContent}>
-              <Text style={styles.settingLabel}>
-                Method
-              </Text>
-              <View style={styles.settingValueRow}>
-                <Text
-                  style={[
-                    styles.settingValue,
-                    autoMode && styles.settingValueExpanded,
-                    autoMode && styles.settingValueDisabled
-                  ]}
-                  numberOfLines={1}
-                >
-                  {METHOD_LABELS[calculationMethod] || calculationMethod}
+                navigation?.navigate('AsrMethod');
+              }}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={styles.settingLabel}>Asr Method</Text>
+                <View style={styles.settingValueRow}>
+                  <Text style={styles.settingValue} numberOfLines={1}>
+                    {ASR_LABELS[asrMethod] || asrMethod}
+                  </Text>
+                  <View style={styles.chevronContainer}>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={ICON_SIZES.md}
+                      color={COLORS.text.secondary}
+                    />
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        </View>
+
+        {/* ADVANCED Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>ADVANCED</Text>
+          <View style={styles.settingsContainer}>
+            {/* High Latitude Rule Button */}
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                if (!autoMode) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation?.navigate('HighLatitudeRule');
+                }
+              }}
+              disabled={autoMode}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={[styles.settingLabel, autoMode && styles.settingLabelDisabled]}>
+                  High Latitude Rule
+                </Text>
+                <View style={styles.settingValueRow}>
+                  <Text style={[styles.settingValue, autoMode && styles.settingValueDisabled]} numberOfLines={1}>
+                    {HIGH_LATITUDE_RULE_LABELS[highLatitudeRule] || highLatitudeRule}
+                  </Text>
+                  <View style={[styles.chevronContainer, { opacity: autoMode ? 0 : 1 }]}>
+                    <MaterialCommunityIcons
+                      name="chevron-right"
+                      size={ICON_SIZES.md}
+                      color={COLORS.text.secondary}
+                    />
+                  </View>
+                </View>
+              </View>
+            </Pressable>
+
+            <View style={styles.separator} />
+
+            {/* Custom Angles Button */}
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                if (!autoMode) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation?.navigate('CustomAngles');
+                }
+              }}
+              disabled={autoMode}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={[styles.settingLabel, autoMode && styles.settingLabelDisabled]}>
+                  Custom Angles
                 </Text>
                 <View style={[styles.chevronContainer, { opacity: autoMode ? 0 : 1 }]}>
                   <MaterialCommunityIcons
                     name="chevron-right"
                     size={ICON_SIZES.md}
-                    color={COLORS.text.disabled}
+                    color={COLORS.text.secondary}
                   />
                 </View>
               </View>
-            </View>
-          </Pressable>
-        </View>
+            </Pressable>
 
-        {/* Advanced Settings Link */}
-        <Pressable
-          style={styles.advancedLink}
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            navigation?.navigate('AdvancedCalculation');
-          }}
-        >
-          <MaterialCommunityIcons
-            name="tune-variant"
-            size={ICON_SIZES.md}
-            color={COLORS.text.secondary}
-          />
-          <Text style={styles.advancedLinkText}>Advanced Settings</Text>
-          <MaterialCommunityIcons
-            name="chevron-right"
-            size={ICON_SIZES.md}
-            color={COLORS.text.disabled}
-          />
-        </Pressable>
+            <View style={styles.separator} />
+
+            {/* Prayer Time Adjustments Button */}
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                if (!autoMode) {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  navigation?.navigate('PrayerAdjustments');
+                }
+              }}
+              disabled={autoMode}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={[styles.settingLabel, autoMode && styles.settingLabelDisabled]}>
+                  Prayer Time Adjustments
+                </Text>
+                <View style={[styles.chevronContainer, { opacity: autoMode ? 0 : 1 }]}>
+                  <MaterialCommunityIcons
+                    name="chevron-right"
+                    size={ICON_SIZES.md}
+                    color={COLORS.text.secondary}
+                  />
+                </View>
+              </View>
+            </Pressable>
+          </View>
+        </View>
       </ScrollView>
     </View>
   );
@@ -271,6 +391,17 @@ const styles = StyleSheet.create({
     paddingTop: SPACING.lg,
     paddingBottom: SPACING.xl,
   },
+  section: {
+    marginBottom: SPACING.xl,
+  },
+  sectionTitle: {
+    fontSize: FONTS.sizes.sm,
+    fontFamily: FONTS.weights.medium.primary,
+    color: 'rgba(255, 255, 255, 0.69)',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: SPACING.md,
+  },
   settingsContainer: {
     backgroundColor: COLORS.background.secondary,
     borderRadius: RADIUS.md,
@@ -303,6 +434,9 @@ const styles = StyleSheet.create({
     color: COLORS.text.primary,
     flexShrink: 0,
   },
+  settingLabelDisabled: {
+    color: COLORS.text.disabled,
+  },
   settingValueRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -316,9 +450,7 @@ const styles = StyleSheet.create({
     color: COLORS.text.secondary,
     textAlign: 'right',
     paddingRight: ICON_SIZES.md + SPACING.xs,
-  },
-  settingValueExpanded: {
-    paddingRight: 0,
+    flexShrink: 1,
   },
   settingValueDisabled: {
     color: COLORS.text.disabled,
@@ -335,23 +467,6 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
     marginLeft: SPACING.md,
-  },
-  advancedLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: SPACING.md,
-    paddingHorizontal: SPACING.md,
-    marginTop: SPACING.md,
-    backgroundColor: 'rgba(255, 255, 255, 0.03)',
-    borderRadius: RADIUS.sm,
-  },
-  advancedLinkText: {
-    flex: 1,
-    fontSize: FONTS.sizes.md,
-    fontFamily: FONTS.weights.regular.primary,
-    color: COLORS.text.secondary,
-    marginLeft: SPACING.sm,
   },
 });
 
