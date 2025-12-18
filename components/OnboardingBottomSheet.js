@@ -436,7 +436,6 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
   };
 
   const open = () => {
-    console.log('[OnboardingBottomSheet] open() called');
     setVisible(true);
     // Reset to welcome screen
     setShowWelcome(true);

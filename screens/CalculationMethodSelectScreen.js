@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings, updateSetting } from '../utils/settingsStorage';
+import { useSettings } from '../contexts/SettingsContext';
 
 // Available calculation methods
 const CALCULATION_METHODS = [
@@ -14,8 +14,9 @@ const CALCULATION_METHODS = [
   { key: 'UmmAlQura', label: 'Umm al-Qura University, Makkah' },
   { key: 'UniversityOfIslamicSciencesKarachi', label: 'University of Islamic Sciences, Karachi' },
   { key: 'InstituteOfGeophysicsUniversityOfTehran', label: 'Institute of Geophysics, University of Tehran' },
-  { key: 'Shia', label: 'Shia Ithna Ashari (Ja\'fari)' },
-  { key: 'Gulf', label: 'Gulf Region' },
+  { key: 'MoonsightingCommittee', label: 'Moonsighting Committee Worldwide' },
+  { key: 'Turkey', label: 'Turkey (Diyanet)' },
+  { key: 'Dubai', label: 'Dubai / Gulf Region' },
   { key: 'Kuwait', label: 'Kuwait' },
   { key: 'Qatar', label: 'Qatar' },
   { key: 'Singapore', label: 'Singapore' },
@@ -24,24 +25,20 @@ const CALCULATION_METHODS = [
 
 export default function CalculationMethodSelectScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
-  const [calculationMethod, setCalculationMethod] = useState('MuslimWorldLeague');
-
-  // Load settings on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    const settings = await getSettings();
-    setCalculationMethod(settings.calculationMethod || 'MuslimWorldLeague');
-  };
+  const { settings, updateSettingInContext } = useSettings();
+  const calculationMethod = settings.calculationMethod || 'MuslimWorldLeague';
 
   const handleCalculationMethodChange = async (method) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setCalculationMethod(method);
-      await updateSetting('calculationMethod', method);
-      // Don't call onSettingsChange or navigate back - let user stay on screen
+
+      // Update context - instantly updates everywhere!
+      await updateSettingInContext('calculationMethod', method);
+
+      // Trigger prayer time recalculation
+      if (onSettingsChange) {
+        onSettingsChange();
+      }
     } catch (error) {
       console.error('Error updating calculation method:', error);
     }

@@ -103,7 +103,6 @@ export const resetOnboarding = async () => {
     const settings = await getSettings();
     settings.onboardingCompleted = false;
     await saveSettings(settings);
-    console.log('Onboarding reset to false');
   } catch (error) {
     console.error('Error resetting onboarding:', error);
   }
@@ -118,11 +117,11 @@ const COUNTRY_METHOD_MAP = {
 
   // Middle East
   'Saudi Arabia': 'UmmAlQura',
-  'United Arab Emirates': 'Gulf',
+  'United Arab Emirates': 'Dubai', // Fixed: was 'Gulf', now using correct method name
   'Kuwait': 'Kuwait',
   'Qatar': 'Qatar',
-  'Bahrain': 'Gulf',
-  'Oman': 'Gulf',
+  'Bahrain': 'Dubai', // Fixed: was 'Gulf', now using correct method name
+  'Oman': 'Dubai', // Fixed: was 'Gulf', now using correct method name
   'Yemen': 'UmmAlQura',
   'Jordan': 'MuslimWorldLeague',
   'Lebanon': 'MuslimWorldLeague',

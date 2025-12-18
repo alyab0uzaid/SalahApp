@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, Dimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -6,14 +6,15 @@ import { BottomSheetModal, BottomSheetView, BottomSheetBackdrop } from '@gorhom/
 import { RulerPicker } from 'react-native-ruler-picker';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings, saveSettings } from '../utils/settingsStorage';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
+  const { settings, updateSettingInContext } = useSettings();
 
-  // Custom angles
-  const [fajrAngle, setFajrAngle] = useState('');
-  const [ishaAngle, setIshaAngle] = useState('');
+  // Get custom angles from context, default to 15.0
+  const fajrAngle = settings.customAngles?.fajrAngle?.toString() || '15.0';
+  const ishaAngle = settings.customAngles?.ishaAngle?.toString() || '15.0';
 
   // Bottom sheet refs
   const fajrAngleSheetRef = useRef(null);
@@ -24,27 +25,6 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
 
   // Temporary input values for bottom sheet
   const [tempValue, setTempValue] = useState('0');
-
-  // Load settings on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    const settings = await getSettings();
-
-    // Load custom angles, default to 15.0 if not set
-    if (settings.customAngles?.fajrAngle !== null && settings.customAngles?.fajrAngle !== undefined) {
-      setFajrAngle(settings.customAngles.fajrAngle.toString());
-    } else {
-      setFajrAngle('15.0');
-    }
-    if (settings.customAngles?.ishaAngle !== null && settings.customAngles?.ishaAngle !== undefined) {
-      setIshaAngle(settings.customAngles.ishaAngle.toString());
-    } else {
-      setIshaAngle('15.0');
-    }
-  };
 
   const handleOpenBottomSheet = (type) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -70,37 +50,24 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
       const type = editingType;
       if (!type) return;
 
-      // Get the current settings first
-      const settings = await getSettings();
-      
-      // Update the specific angle based on temp value
+      const newValue = tempValue;
+      const parsedValue = newValue && newValue !== '0' ? parseFloat(newValue) : null;
+
+      // Update the specific angle in context
+      const updatedAngles = {
+        ...settings.customAngles,
+        [type === 'fajr' ? 'fajrAngle' : 'ishaAngle']: parsedValue,
+      };
+
+      // Update context - instantly updates everywhere!
+      await updateSettingInContext('customAngles', updatedAngles);
+
+      // Dismiss the appropriate sheet
       if (type === 'fajr') {
-        const newValue = tempValue;
-        setFajrAngle(newValue);
-        settings.customAngles = {
-          ...settings.customAngles,
-          fajrAngle: newValue && newValue !== '0' ? parseFloat(newValue) : null,
-        };
         fajrAngleSheetRef.current?.dismiss();
       } else if (type === 'isha') {
-        const newValue = tempValue;
-        setIshaAngle(newValue);
-        settings.customAngles = {
-          ...settings.customAngles,
-          ishaAngle: newValue && newValue !== '0' ? parseFloat(newValue) : null,
-        };
         ishaAngleSheetRef.current?.dismiss();
       }
-
-      // Ensure customAngles object exists
-      if (!settings.customAngles) {
-        settings.customAngles = {
-          fajrAngle: null,
-          ishaAngle: null,
-        };
-      }
-
-      await saveSettings(settings);
 
       if (onSettingsChange) {
         await onSettingsChange();
@@ -163,24 +130,17 @@ export default function CustomAnglesScreen({ navigation, onSettingsChange }) {
   const handleReset = async () => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      
-      const settings = await getSettings();
-      
-      // Reset all angles to 15.0
-      setFajrAngle('15.0');
-      setIshaAngle('15.0');
-      
-      settings.customAngles = {
+
+      // Reset all angles to 15.0 in context - instantly updates everywhere!
+      await updateSettingInContext('customAngles', {
         fajrAngle: 15.0,
         ishaAngle: 15.0,
-      };
-      
-      await saveSettings(settings);
-      
+      });
+
       if (onSettingsChange) {
         await onSettingsChange();
       }
-      
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error resetting angles:', error);

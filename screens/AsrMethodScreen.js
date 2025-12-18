@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings, updateSetting } from '../utils/settingsStorage';
+import { useSettings } from '../contexts/SettingsContext';
 
 // Asr calculation methods
 const ASR_METHODS = [
@@ -14,24 +14,20 @@ const ASR_METHODS = [
 
 export default function AsrMethodScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
-  const [asrMethod, setAsrMethod] = useState('Standard');
-
-  // Load settings on mount
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    const settings = await getSettings();
-    setAsrMethod(settings.asrMethod || 'Standard');
-  };
+  const { settings, updateSettingInContext } = useSettings();
+  const asrMethod = settings.asrMethod || 'Standard';
 
   const handleAsrMethodChange = async (method) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setAsrMethod(method);
-      await updateSetting('asrMethod', method);
-      // Don't call onSettingsChange or navigate back - let user stay on screen
+
+      // Update context - instantly updates everywhere!
+      await updateSettingInContext('asrMethod', method);
+
+      // Trigger prayer time recalculation
+      if (onSettingsChange) {
+        onSettingsChange();
+      }
     } catch (error) {
       console.error('Error updating Asr method:', error);
     }

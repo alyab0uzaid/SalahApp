@@ -257,7 +257,6 @@ export const schedulePrayerNotifications = async (
       }
     }
 
-    console.log('Prayer notifications scheduled successfully');
   } catch (error) {
     console.error('Error scheduling prayer notifications:', error);
   }
@@ -302,7 +301,6 @@ export const sendTestNotification = async (prayerName, prayerTime) => {
       identifier: `test-${prayerName.toLowerCase()}-${Date.now()}`,
     });
 
-    console.log(`Test notification sent for ${prayerName}`);
   } catch (error) {
     console.error('Error sending test notification:', error);
   }

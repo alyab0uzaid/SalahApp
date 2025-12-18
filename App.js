@@ -10,6 +10,7 @@ import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
+import { SettingsProvider } from './contexts/SettingsContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
@@ -175,6 +176,14 @@ export default function App() {
   // Cache today's prayer times
   const todayPrayerTimesRef = useRef(null);
   const lastTimeFormatRef = useRef('12'); // Initialize with default, will be updated when settings load
+  const lastCalculationSettingsRef = useRef({
+    calculationMethod: 'MuslimWorldLeague',
+    asrMethod: 'Standard',
+    fajrAngle: null,
+    ishaAngle: null,
+    highLatitudeRule: 'MiddleOfTheNight',
+    adjustments: null,
+  });
   const bottomSheetRef = useRef(null);
   const datePickerBottomSheetRef = useRef(null);
   const prayerStatusBottomSheetRef = useRef(null);
@@ -305,7 +314,6 @@ export default function App() {
                   calculationMethod: recommendedMethod,
                 }));
 
-                console.log(`[Auto-detect] Country: ${country}, Method: ${recommendedMethod}`);
               }
             }
           }
@@ -383,19 +391,20 @@ export default function App() {
   const getCalculationMethod = (methodName) => {
     const methodMap = {
       'MuslimWorldLeague': Adhan.CalculationMethod.MuslimWorldLeague,
-      'IslamicSocietyOfNorthAmerica': Adhan.CalculationMethod.IslamicSocietyOfNorthAmerica,
+      'IslamicSocietyOfNorthAmerica': Adhan.CalculationMethod.NorthAmerica, // Fixed: was using wrong name
       'Egyptian': Adhan.CalculationMethod.Egyptian,
       'UmmAlQura': Adhan.CalculationMethod.UmmAlQura,
-      'UniversityOfIslamicSciencesKarachi': Adhan.CalculationMethod.UniversityOfIslamicSciencesKarachi,
-      'InstituteOfGeophysicsUniversityOfTehran': Adhan.CalculationMethod.InstituteOfGeophysicsUniversityOfTehran,
-      'Shia': Adhan.CalculationMethod.Shia,
-      'Gulf': Adhan.CalculationMethod.Gulf,
+      'UniversityOfIslamicSciencesKarachi': Adhan.CalculationMethod.Karachi, // Fixed: was using wrong name
+      'InstituteOfGeophysicsUniversityOfTehran': Adhan.CalculationMethod.Tehran, // Fixed: was using wrong name
+      'MoonsightingCommittee': Adhan.CalculationMethod.MoonsightingCommittee,
+      'Turkey': Adhan.CalculationMethod.Turkey,
+      'Dubai': Adhan.CalculationMethod.Dubai, // Fixed: was labeled as 'Gulf'
       'Kuwait': Adhan.CalculationMethod.Kuwait,
       'Qatar': Adhan.CalculationMethod.Qatar,
       'Singapore': Adhan.CalculationMethod.Singapore,
       'Other': Adhan.CalculationMethod.Other,
     };
-    
+
     const method = methodMap[methodName] || Adhan.CalculationMethod.MuslimWorldLeague;
     return method();
   };
@@ -403,6 +412,12 @@ export default function App() {
   // Calculate prayer times when location, selected date, or settings change
   useEffect(() => {
     const calculatePrayerTimes = async () => {
+      console.log('[App] calculatePrayerTimes triggered with:', {
+        calculationMethod: calculationSettings.calculationMethod,
+        asrMethod: calculationSettings.asrMethod,
+        hasLocation: !!location
+      });
+
       if (location && displaySettings) {
         const today = new Date();
         const isToday = selectedDate.getDate() === today.getDate() &&
@@ -420,10 +435,57 @@ export default function App() {
           }
         }
 
-        // Skip recalculation only if it's today, times are cached, format hasn't changed, and times match
-        if (isToday && todayPrayerTimesRef.current && !timeFormatChanged && JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current)) {
+        // Load all settings that affect calculation (need to check BEFORE deciding to use cache)
+        const settings = await getSettings();
+
+        // Create a hash of ALL settings that affect prayer time calculation
+        const currentSettingsHash = JSON.stringify({
+          calculationMethod: calculationSettings.calculationMethod,
+          asrMethod: calculationSettings.asrMethod,
+          fajrAngle: settings.customAngles?.fajrAngle,
+          ishaAngle: settings.customAngles?.ishaAngle,
+          highLatitudeRule: settings.highLatitudeRule,
+          adjustments: settings.prayerAdjustments,
+        });
+
+        const lastSettingsHash = JSON.stringify(lastCalculationSettingsRef.current);
+
+        // Check if ANY calculation-related setting changed
+        const calculationSettingsChanged = currentSettingsHash !== lastSettingsHash;
+
+        if (calculationSettingsChanged) {
+          console.log('[App] Calculation settings changed, clearing cache');
+          console.log('[App] Old settings:', lastSettingsHash);
+          console.log('[App] New settings:', currentSettingsHash);
+          lastCalculationSettingsRef.current = JSON.parse(currentSettingsHash);
+          // Clear cache to force recalculation
+          if (isToday) {
+            todayPrayerTimesRef.current = null;
+          }
+        }
+
+        // IMPORTANT: Don't skip calculation if settings changed
+        // The cache check below would compare old times with old times and skip unnecessarily
+        // We need to recalculate to get the NEW times with the NEW settings
+
+        // Skip recalculation only if:
+        // 1. It's today
+        // 2. Times are cached
+        // 3. Nothing changed (format, calculation settings)
+        // 4. Current times match cached times
+        // If calculation settings OR time format changed, we MUST recalculate even if times match
+        const shouldUseCache = isToday &&
+          todayPrayerTimesRef.current &&
+          !timeFormatChanged &&
+          !calculationSettingsChanged &&
+          JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current);
+
+        if (shouldUseCache) {
+          console.log('[App] Skipping recalculation - using cached times');
           return;
         }
+
+        console.log('[App] Recalculating prayer times');
 
         const coordinates = new Adhan.Coordinates(
           location.coords.latitude,
@@ -431,16 +493,18 @@ export default function App() {
         );
 
         const params = getCalculationMethod(calculationSettings.calculationMethod);
+        console.log('[App] Using calculation method:', calculationSettings.calculationMethod);
 
         // Set Asr calculation method (madhab)
         if (calculationSettings.asrMethod === 'Hanafi') {
           params.madhab = Adhan.Madhab.Hanafi;
+          console.log('[App] Using Hanafi madhab for Asr');
         } else {
           params.madhab = Adhan.Madhab.Shafi;
+          console.log('[App] Using Shafi madhab for Asr');
         }
 
-        // Apply custom angles if set
-        const settings = await getSettings();
+        // Apply custom angles if set (settings already loaded above)
         if (settings.customAngles?.fajrAngle !== null && settings.customAngles?.fajrAngle !== undefined) {
           params.fajrAngle = settings.customAngles.fajrAngle;
         }
@@ -485,7 +549,6 @@ export default function App() {
           todayPrayerTimesRef.current = formattedTimes;
         }
 
-        console.log('[App] Prayer times recalculated with format:', currentTimeFormat);
         setPrayerTimes(formattedTimes);
         setLoading(false);
       }
@@ -525,7 +588,6 @@ export default function App() {
 
   // Update current time every 10 seconds
   useEffect(() => {
-    console.log('[App] Current time format changed to:', timeFormat);
     // Update immediately when format changes
     setCurrentTime(formatTime(new Date(), timeFormat));
     
@@ -595,16 +657,18 @@ export default function App() {
       const newCalculationMethod = settings.calculationMethod || 'MuslimWorldLeague';
       const newAsrMethod = settings.asrMethod || 'Standard';
 
-      console.log('[Settings] Updating timeFormat to:', newTimeFormat);
+      console.log('[App] handleSettingsChange called:', { newCalculationMethod, newAsrMethod });
 
       // Only update calculationSettings if values actually changed
       setCalculationSettings(prev => {
         if (prev.calculationMethod !== newCalculationMethod || prev.asrMethod !== newAsrMethod) {
+          console.log('[App] Updating calculationSettings from', prev, 'to', { calculationMethod: newCalculationMethod, asrMethod: newAsrMethod });
           return {
             calculationMethod: newCalculationMethod,
             asrMethod: newAsrMethod,
           };
         }
+        console.log('[App] No change in calculationSettings');
         return prev; // Return same reference if no change
       });
 
@@ -623,7 +687,6 @@ export default function App() {
       // Only update timeFormat if it changed
       setTimeFormat(prev => prev !== newTimeFormat ? newTimeFormat : prev);
 
-      console.log('[Settings] displaySettings updated, new timeFormat:', newTimeFormat);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -749,8 +812,9 @@ export default function App() {
   const isContentReady = fontsLoaded && !loading && minLoadingComplete;
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
+    <SettingsProvider>
+      <SafeAreaProvider>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Main content - rendered when ready and onboarding is completed */}
       {isContentReady && onboardingCompleted && (
         <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
@@ -1001,7 +1065,8 @@ export default function App() {
           <OnboardingScreen onComplete={handleOnboardingComplete} />
         </View>
       )}
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </SettingsProvider>
   );
 }
 

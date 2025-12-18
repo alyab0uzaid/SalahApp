@@ -1,60 +1,30 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Switch, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
-import { getSettings, updateSetting } from '../utils/settingsStorage';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function DisplayTimeScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
-  const [use24Hour, setUse24Hour] = useState(false);
-  const isInitialLoadRef = useRef(true);
+  const { settings, updateSettingInContext } = useSettings();
 
-  // Load settings on mount
-  useEffect(() => {
-    loadSettings();
-    isInitialLoadRef.current = false;
-  }, []);
-
-  // Reload settings when screen comes into focus (to reflect changes made elsewhere)
-  // But only update state if value actually changed to prevent toggle jumping
-  useEffect(() => {
-    const unsubscribe = navigation?.addListener('focus', () => {
-      if (!isInitialLoadRef.current) {
-        loadSettings();
-      }
-    });
-    return unsubscribe;
-  }, [navigation]);
-
-  const loadSettings = async () => {
-    const settings = await getSettings();
-    const newValue = settings.timeFormat === '24';
-    // Only update state if value actually changed to prevent toggle jumping
-    setUse24Hour(prevValue => {
-      if (prevValue !== newValue) {
-        return newValue;
-      }
-      return prevValue; // Return same value - React won't re-render
-    });
-  };
+  const use24Hour = settings.timeFormat === '24';
 
   const handleTimeFormatToggle = async (value) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Update local state immediately for responsive UI
-      setUse24Hour(value);
-      // Save to storage
-      await updateSetting('timeFormat', value ? '24' : '12');
-      // Notify parent to update the app immediately after save
+
+      // Update context - instantly updates everywhere!
+      await updateSettingInContext('timeFormat', value ? '24' : '12');
+
+      // Notify parent to update the app
       if (onSettingsChange) {
         await onSettingsChange();
       }
     } catch (error) {
       console.error('Error updating time format:', error);
-      // Revert on error
-      setUse24Hour(!value);
     }
   };
 
