@@ -365,8 +365,69 @@ export default function App() {
     };
     
     const loadPrayerStatus = async () => {
-      const savedStatus = await getPrayerStatus();
-      setPrayerStatus(savedStatus);
+      // For screenshots: Generate mock data showing improvement over 3 weeks
+      const generateMockPrayerStatus = () => {
+        const today = new Date();
+        const mockStatus = {};
+        const prayerNamesForTracking = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']; // Exclude Sunrise
+        
+        // Generate data for the past 21 days (3 weeks) showing improvement
+        for (let dayOffset = 20; dayOffset >= 0; dayOffset--) {
+          const date = new Date(today);
+          date.setDate(date.getDate() - dayOffset);
+          const dateKey = date.toISOString().split('T')[0];
+          
+          // Calculate progress: start with fewer prayers, improve over time
+          // Day 0 (20 days ago): 1-2 prayers
+          // Day 10 (10 days ago): 3-4 prayers
+          // Day 20 (today): All 5 prayers on-time
+          const progressRatio = dayOffset / 20; // 1.0 (oldest) to 0.0 (today)
+          const numPrayers = Math.max(1, Math.min(5, Math.round(5 - (progressRatio * 4))));
+          
+          const dayStatus = {};
+          
+          // Select prayers to mark (showing improvement pattern)
+          if (dayOffset === 0) {
+            // Today: All prayers on-time
+            prayerNamesForTracking.forEach(name => {
+              dayStatus[name] = 'on-time';
+            });
+          } else if (dayOffset <= 3) {
+            // Last 3 days: 4-5 prayers on-time
+            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
+            prayersToMark.forEach(name => {
+              dayStatus[name] = Math.random() > 0.2 ? 'on-time' : 'late';
+            });
+          } else if (dayOffset <= 7) {
+            // Week 1: 3-4 prayers, mix of on-time and late
+            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
+            prayersToMark.forEach(name => {
+              dayStatus[name] = Math.random() > 0.4 ? 'on-time' : 'late';
+            });
+          } else if (dayOffset <= 14) {
+            // Week 2: 2-3 prayers, more late than on-time
+            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
+            prayersToMark.forEach(name => {
+              dayStatus[name] = Math.random() > 0.6 ? 'on-time' : 'late';
+            });
+          } else {
+            // Week 3 (oldest): 1-2 prayers, mostly late
+            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
+            prayersToMark.forEach(name => {
+              dayStatus[name] = Math.random() > 0.7 ? 'on-time' : 'late';
+            });
+          }
+          
+          if (Object.keys(dayStatus).length > 0) {
+            mockStatus[dateKey] = dayStatus;
+          }
+        }
+        
+        return mockStatus;
+      };
+      
+      const mockStatus = generateMockPrayerStatus();
+      setPrayerStatus(mockStatus);
       // Mark as initialized after loading (with a small delay to ensure state is set)
       setTimeout(() => {
         prayerStatusInitializedRef.current = true;
