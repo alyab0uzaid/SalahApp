@@ -48,6 +48,10 @@ export default function TrackerScreen({
   const handleGoToToday = () => {
     setSelectedDate(new Date());
   };
+
+  // Filter out Sunrise from the prayer list (Sunrise is not a prayer to track)
+  const filteredPrayerNames = prayerNames.filter(name => name !== 'Sunrise');
+  const filteredPrayerTimes = prayerTimes.filter((time, index) => prayerNames[index] !== 'Sunrise');
   
   return (
     <ScrollView
@@ -91,8 +95,8 @@ export default function TrackerScreen({
         style={styles.datePicker}
       />
       <PrayerList
-        prayerTimes={prayerTimes}
-        prayerNames={prayerNames}
+        prayerTimes={filteredPrayerTimes}
+        prayerNames={filteredPrayerNames}
         currentTime={currentTime}
         style={styles.prayerList}
         selectedDate={selectedDate}
