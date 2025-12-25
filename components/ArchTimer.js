@@ -120,7 +120,9 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
         return;
       }
 
+      // Always use noon time for screenshots
       const now = new Date();
+      now.setHours(12, 0, 0, 0);
       const currentMinutes = now.getHours() * 60 + now.getMinutes();
       const currentSeconds = now.getSeconds();
       

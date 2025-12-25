@@ -226,10 +226,15 @@ export default function App() {
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
 
-  // Get current time and update it every 10 seconds
+  // Get current time - always use noon for screenshots
+  const getNoonTime = () => {
+    const noon = new Date();
+    noon.setHours(12, 0, 0, 0);
+    return noon;
+  };
+
   const [currentTime, setCurrentTime] = useState(() => {
-    const now = new Date();
-    return formatTime(now);
+    return formatTime(getNoonTime());
   });
 
   // Fetch location (call this after permission is granted)
@@ -571,13 +576,14 @@ export default function App() {
     scheduleNotifications();
   }, [prayerTimes, selectedDate, prayerNames, notifications]);
 
-  // Update current time every 10 seconds
+  // Update current time every 10 seconds - always use noon for screenshots
   useEffect(() => {
     // Update immediately when format changes
-    setCurrentTime(formatTime(new Date(), timeFormat));
+    setCurrentTime(formatTime(getNoonTime(), timeFormat));
     
+    // Keep interval for consistency, but always use noon
     const interval = setInterval(() => {
-      setCurrentTime(formatTime(new Date(), timeFormat));
+      setCurrentTime(formatTime(getNoonTime(), timeFormat));
     }, 10000);
 
     return () => clearInterval(interval);
