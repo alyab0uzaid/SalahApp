@@ -1,11 +1,11 @@
 import React, { useRef } from 'react';
-import { StyleSheet, Platform, Dimensions, View, Text } from 'react-native';
+import { StyleSheet, Platform, Dimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ArchTimer from '../components/ArchTimer';
 import SimplePrayerList from '../components/SimplePrayerList';
 import LocationTag from '../components/LocationTag';
 import DatePicker from '../components/DatePicker';
-import { COLORS, SPACING, ICON_SIZES, FONTS } from '../constants/theme';
+import { COLORS, SPACING, ICON_SIZES } from '../constants/theme';
 
 export default function HomeScreen({
   location,
@@ -33,11 +33,6 @@ export default function HomeScreen({
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header for Screenshots */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Home</Text>
-      </View>
-      
       {/* Top Section - Location and Arch */}
       <View style={styles.topSection}>
         <LocationTag
@@ -148,17 +143,5 @@ const styles = StyleSheet.create({
   },
   prayerList: {
     marginTop: 0,
-  },
-  headerContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  headerText: {
-    fontSize: FONTS.sizes.xl,
-    fontFamily: FONTS.weights.bold.primary,
-    color: COLORS.text.primary,
-    letterSpacing: 1,
   },
 });

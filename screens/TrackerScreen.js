@@ -48,10 +48,10 @@ export default function TrackerScreen({
   const handleGoToToday = () => {
     setSelectedDate(new Date());
   };
-  
-  // Filter out Sunrise from prayer list for tracker (Sunrise is not a prayer to track)
+
+  // Filter out Sunrise from the prayer list (Sunrise is not a prayer to track)
   const filteredPrayerNames = prayerNames.filter(name => name !== 'Sunrise');
-  const filteredPrayerTimes = prayerTimes.filter((_, index) => prayerNames[index] !== 'Sunrise');
+  const filteredPrayerTimes = prayerTimes.filter((time, index) => prayerNames[index] !== 'Sunrise');
   
   return (
     <ScrollView
@@ -60,11 +60,6 @@ export default function TrackerScreen({
       showsVerticalScrollIndicator={false}
       clipsToBounds={false}
     >
-      {/* Header for Screenshots */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Tracker</Text>
-      </View>
-      
       <Pressable
         style={[
           styles.todayButton,
@@ -168,17 +163,5 @@ const styles = StyleSheet.create({
   },
   prayerList: {
     marginTop: 0,
-  },
-  headerContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-  },
-  headerText: {
-    fontSize: FONTS.sizes.xl,
-    fontFamily: FONTS.weights.bold.primary,
-    color: COLORS.text.primary,
-    letterSpacing: 1,
   },
 });

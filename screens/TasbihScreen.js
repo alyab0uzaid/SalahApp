@@ -296,11 +296,6 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
-      {/* Header for Screenshots */}
-      <View style={styles.headerContainer}>
-        <Text style={styles.headerText}>Tasbih</Text>
-      </View>
-      
       {/* Instruction or Count Display - Both always rendered, opacity changes */}
       <View style={styles.countContainer}>
         <Animated.View style={[styles.instructionWrapper, { opacity: instructionOpacity, position: 'absolute' }]}>
@@ -434,18 +429,5 @@ const styles = StyleSheet.create({
     width: LARGEST_BEAD_SIZE, // Largest bead size
     height: TOTAL_BEAD_HEIGHT,
     alignItems: 'center',
-  },
-  headerContainer: {
-    width: '100%',
-    alignItems: 'center',
-    paddingTop: SPACING.md,
-    paddingBottom: SPACING.sm,
-    zIndex: 10,
-  },
-  headerText: {
-    fontSize: FONTS.sizes.xl,
-    fontFamily: FONTS.weights.bold.primary,
-    color: COLORS.text.primary,
-    letterSpacing: 1,
   },
 });
