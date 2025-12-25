@@ -18,7 +18,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to calculate accurate prayer times.",
-        "NSUserNotificationsUsageDescription": "This app needs notification permissions to remind you of prayer times."
+        "NSUserNotificationsUsageDescription": "This app needs notification permissions to remind you of prayer times.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,6 +31,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "cb179dad-909f-4f23-9fa8-223898b7271a"
+      }
     }
   }
 }
