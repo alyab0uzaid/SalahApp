@@ -412,12 +412,6 @@ export default function App() {
   // Calculate prayer times when location, selected date, or settings change
   useEffect(() => {
     const calculatePrayerTimes = async () => {
-      console.log('[App] calculatePrayerTimes triggered with:', {
-        calculationMethod: calculationSettings.calculationMethod,
-        asrMethod: calculationSettings.asrMethod,
-        hasLocation: !!location
-      });
-
       if (location && displaySettings) {
         const today = new Date();
         const isToday = selectedDate.getDate() === today.getDate() &&
@@ -454,9 +448,6 @@ export default function App() {
         const calculationSettingsChanged = currentSettingsHash !== lastSettingsHash;
 
         if (calculationSettingsChanged) {
-          console.log('[App] Calculation settings changed, clearing cache');
-          console.log('[App] Old settings:', lastSettingsHash);
-          console.log('[App] New settings:', currentSettingsHash);
           lastCalculationSettingsRef.current = JSON.parse(currentSettingsHash);
           // Clear cache to force recalculation
           if (isToday) {
@@ -481,11 +472,8 @@ export default function App() {
           JSON.stringify(prayerTimes) === JSON.stringify(todayPrayerTimesRef.current);
 
         if (shouldUseCache) {
-          console.log('[App] Skipping recalculation - using cached times');
           return;
         }
-
-        console.log('[App] Recalculating prayer times');
 
         const coordinates = new Adhan.Coordinates(
           location.coords.latitude,
@@ -493,15 +481,12 @@ export default function App() {
         );
 
         const params = getCalculationMethod(calculationSettings.calculationMethod);
-        console.log('[App] Using calculation method:', calculationSettings.calculationMethod);
 
         // Set Asr calculation method (madhab)
         if (calculationSettings.asrMethod === 'Hanafi') {
           params.madhab = Adhan.Madhab.Hanafi;
-          console.log('[App] Using Hanafi madhab for Asr');
         } else {
           params.madhab = Adhan.Madhab.Shafi;
-          console.log('[App] Using Shafi madhab for Asr');
         }
 
         // Apply custom angles if set (settings already loaded above)
@@ -657,18 +642,14 @@ export default function App() {
       const newCalculationMethod = settings.calculationMethod || 'MuslimWorldLeague';
       const newAsrMethod = settings.asrMethod || 'Standard';
 
-      console.log('[App] handleSettingsChange called:', { newCalculationMethod, newAsrMethod });
-
       // Only update calculationSettings if values actually changed
       setCalculationSettings(prev => {
         if (prev.calculationMethod !== newCalculationMethod || prev.asrMethod !== newAsrMethod) {
-          console.log('[App] Updating calculationSettings from', prev, 'to', { calculationMethod: newCalculationMethod, asrMethod: newAsrMethod });
           return {
             calculationMethod: newCalculationMethod,
             asrMethod: newAsrMethod,
           };
         }
-        console.log('[App] No change in calculationSettings');
         return prev; // Return same reference if no change
       });
 
