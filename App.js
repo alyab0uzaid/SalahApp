@@ -226,15 +226,15 @@ export default function App() {
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
 
-  // Get current time - always use noon for screenshots
-  const getNoonTime = () => {
-    const noon = new Date();
-    noon.setHours(12, 0, 0, 0);
-    return noon;
+  // Get current time - always use 3:00 PM for screenshots
+  const getFixedTime = () => {
+    const fixedTime = new Date();
+    fixedTime.setHours(15, 0, 0, 0);
+    return fixedTime;
   };
 
   const [currentTime, setCurrentTime] = useState(() => {
-    return formatTime(getNoonTime());
+    return formatTime(getFixedTime());
   });
 
   // Fetch location (call this after permission is granted)
@@ -576,14 +576,14 @@ export default function App() {
     scheduleNotifications();
   }, [prayerTimes, selectedDate, prayerNames, notifications]);
 
-  // Update current time every 10 seconds - always use noon for screenshots
+  // Update current time every 10 seconds - always use 3:00 PM for screenshots
   useEffect(() => {
     // Update immediately when format changes
-    setCurrentTime(formatTime(getNoonTime(), timeFormat));
+    setCurrentTime(formatTime(getFixedTime(), timeFormat));
     
-    // Keep interval for consistency, but always use noon
+    // Keep interval for consistency, but always use 3:00 PM
     const interval = setInterval(() => {
-      setCurrentTime(formatTime(getNoonTime(), timeFormat));
+      setCurrentTime(formatTime(getFixedTime(), timeFormat));
     }, 10000);
 
     return () => clearInterval(interval);
