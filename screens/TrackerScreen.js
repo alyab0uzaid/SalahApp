@@ -60,6 +60,11 @@ export default function TrackerScreen({
       showsVerticalScrollIndicator={false}
       clipsToBounds={false}
     >
+      {/* Header for Screenshots */}
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerText}>Tracker</Text>
+      </View>
+      
       <Pressable
         style={[
           styles.todayButton,
@@ -163,5 +168,17 @@ const styles = StyleSheet.create({
   },
   prayerList: {
     marginTop: 0,
+  },
+  headerContainer: {
+    width: '100%',
+    alignItems: 'center',
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.sm,
+  },
+  headerText: {
+    fontSize: FONTS.sizes.xl,
+    fontFamily: FONTS.weights.bold.primary,
+    color: COLORS.text.primary,
+    letterSpacing: 1,
   },
 });
