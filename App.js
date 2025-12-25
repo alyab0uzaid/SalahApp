@@ -366,9 +366,11 @@ export default function App() {
     
     const loadPrayerStatus = async () => {
       // For screenshots: Generate mock data showing improvement over 3 weeks
+      // Realistic pattern: Fajr is the most commonly missed prayer
       const generateMockPrayerStatus = () => {
         const today = new Date();
         const mockStatus = {};
+        // Order: Fajr is hardest, then others are easier to maintain
         const prayerNamesForTracking = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha']; // Exclude Sunrise
         
         // Generate data for the past 21 days (3 weeks) showing improvement
@@ -377,44 +379,95 @@ export default function App() {
           date.setDate(date.getDate() - dayOffset);
           const dateKey = date.toISOString().split('T')[0];
           
-          // Calculate progress: start with fewer prayers, improve over time
-          // Day 0 (20 days ago): 1-2 prayers
-          // Day 10 (10 days ago): 3-4 prayers
-          // Day 20 (today): All 5 prayers on-time
-          const progressRatio = dayOffset / 20; // 1.0 (oldest) to 0.0 (today)
-          const numPrayers = Math.max(1, Math.min(5, Math.round(5 - (progressRatio * 4))));
-          
           const dayStatus = {};
           
-          // Select prayers to mark (showing improvement pattern)
           if (dayOffset === 0) {
-            // Today: All prayers on-time
+            // Today: All prayers on-time (best day)
             prayerNamesForTracking.forEach(name => {
               dayStatus[name] = 'on-time';
             });
           } else if (dayOffset <= 3) {
-            // Last 3 days: 4-5 prayers on-time
-            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
-            prayersToMark.forEach(name => {
-              dayStatus[name] = Math.random() > 0.2 ? 'on-time' : 'late';
+            // Last 3 days: Good consistency, but Fajr sometimes missed
+            prayerNamesForTracking.forEach((name, index) => {
+              if (name === 'Fajr') {
+                // Fajr: 70% on-time, 20% late, 10% missed
+                const rand = Math.random();
+                if (rand < 0.7) dayStatus[name] = 'on-time';
+                else if (rand < 0.9) dayStatus[name] = 'late';
+                // else missed (not added)
+              } else {
+                // Other prayers: 90% on-time, 10% late
+                dayStatus[name] = Math.random() > 0.1 ? 'on-time' : 'late';
+              }
             });
           } else if (dayOffset <= 7) {
-            // Week 1: 3-4 prayers, mix of on-time and late
-            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
-            prayersToMark.forEach(name => {
-              dayStatus[name] = Math.random() > 0.4 ? 'on-time' : 'late';
+            // Week 1: Improving, Fajr still inconsistent
+            prayerNamesForTracking.forEach((name, index) => {
+              if (name === 'Fajr') {
+                // Fajr: 50% on-time, 30% late, 20% missed
+                const rand = Math.random();
+                if (rand < 0.5) dayStatus[name] = 'on-time';
+                else if (rand < 0.8) dayStatus[name] = 'late';
+                // else missed
+              } else if (index <= 2) {
+                // Dhuhr, Asr: 80% on-time, 15% late, 5% missed
+                const rand = Math.random();
+                if (rand < 0.8) dayStatus[name] = 'on-time';
+                else if (rand < 0.95) dayStatus[name] = 'late';
+                // else missed
+              } else {
+                // Maghrib, Isha: 85% on-time, 10% late, 5% missed
+                const rand = Math.random();
+                if (rand < 0.85) dayStatus[name] = 'on-time';
+                else if (rand < 0.95) dayStatus[name] = 'late';
+                // else missed
+              }
             });
           } else if (dayOffset <= 14) {
-            // Week 2: 2-3 prayers, more late than on-time
-            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
-            prayersToMark.forEach(name => {
-              dayStatus[name] = Math.random() > 0.6 ? 'on-time' : 'late';
+            // Week 2: Starting to improve, Fajr often missed
+            prayerNamesForTracking.forEach((name, index) => {
+              if (name === 'Fajr') {
+                // Fajr: 30% on-time, 20% late, 50% missed
+                const rand = Math.random();
+                if (rand < 0.3) dayStatus[name] = 'on-time';
+                else if (rand < 0.5) dayStatus[name] = 'late';
+                // else missed
+              } else if (index <= 2) {
+                // Dhuhr, Asr: 60% on-time, 25% late, 15% missed
+                const rand = Math.random();
+                if (rand < 0.6) dayStatus[name] = 'on-time';
+                else if (rand < 0.85) dayStatus[name] = 'late';
+                // else missed
+              } else {
+                // Maghrib, Isha: 70% on-time, 20% late, 10% missed
+                const rand = Math.random();
+                if (rand < 0.7) dayStatus[name] = 'on-time';
+                else if (rand < 0.9) dayStatus[name] = 'late';
+                // else missed
+              }
             });
           } else {
-            // Week 3 (oldest): 1-2 prayers, mostly late
-            const prayersToMark = prayerNamesForTracking.slice(0, numPrayers);
-            prayersToMark.forEach(name => {
-              dayStatus[name] = Math.random() > 0.7 ? 'on-time' : 'late';
+            // Week 3 (oldest): Early days, Fajr mostly missed
+            prayerNamesForTracking.forEach((name, index) => {
+              if (name === 'Fajr') {
+                // Fajr: 15% on-time, 15% late, 70% missed
+                const rand = Math.random();
+                if (rand < 0.15) dayStatus[name] = 'on-time';
+                else if (rand < 0.3) dayStatus[name] = 'late';
+                // else missed
+              } else if (index <= 2) {
+                // Dhuhr, Asr: 40% on-time, 30% late, 30% missed
+                const rand = Math.random();
+                if (rand < 0.4) dayStatus[name] = 'on-time';
+                else if (rand < 0.7) dayStatus[name] = 'late';
+                // else missed
+              } else {
+                // Maghrib, Isha: 50% on-time, 30% late, 20% missed
+                const rand = Math.random();
+                if (rand < 0.5) dayStatus[name] = 'on-time';
+                else if (rand < 0.8) dayStatus[name] = 'late';
+                // else missed
+              }
             });
           }
           
