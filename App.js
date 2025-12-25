@@ -382,10 +382,10 @@ export default function App() {
           const dayStatus = {};
           
           if (dayOffset === 0) {
-            // Today: All prayers on-time (best day)
-            prayerNamesForTracking.forEach(name => {
-              dayStatus[name] = 'on-time';
-            });
+            // Today: Only Fajr and Dhuhr (others haven't happened yet since it's 3:00 PM)
+            dayStatus['Fajr'] = 'on-time';
+            dayStatus['Dhuhr'] = 'on-time';
+            // Asr, Maghrib, Isha haven't happened yet
           } else if (dayOffset <= 3) {
             // Last 3 days: Good consistency, but Fajr sometimes missed
             prayerNamesForTracking.forEach((name, index) => {
