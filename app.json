@@ -15,7 +15,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.salahapp.ios",
-      "buildNumber": "2",
+      "buildNumber": "4",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "This app needs access to your location to calculate accurate prayer times.",
         "NSUserNotificationsUsageDescription": "This app needs notification permissions to remind you of prayer times.",
