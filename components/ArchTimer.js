@@ -47,6 +47,9 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   const timerOpacity = useRef(new Animated.Value(isCurrentDateToday ? 1 : 0)).current;
   const buttonOpacity = useRef(new Animated.Value(isCurrentDateToday ? 0 : 1)).current;
 
+  // Track last animation state to prevent duplicate animations
+  const lastIsTodayRef = useRef(isCurrentDateToday);
+
   // Expose animation control to parent
   useImperativeHandle(ref, () => ({
     animateToToday: () => {
@@ -73,6 +76,18 @@ const ArchTimer = memo(forwardRef(({ prayerTimes, prayerNames, currentTime, widt
   // Smooth transitions when date changes
   useEffect(() => {
     const isToday = isCurrentDateToday;
+
+    // Only animate if the today state actually changed (prevent duplicate animations from rapid clicks)
+    if (lastIsTodayRef.current === isToday) {
+      return;
+    }
+
+    lastIsTodayRef.current = isToday;
+
+    // Stop any existing animations before starting new ones to prevent stacking from rapid clicks
+    timerOpacity.stopAnimation();
+    buttonOpacity.stopAnimation();
+
     if (isToday) {
       // Fade in timer, fade out button
       Animated.parallel([

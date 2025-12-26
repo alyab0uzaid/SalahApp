@@ -57,7 +57,8 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
   const insets = useSafeAreaInsets();
   const [count, setCount] = useState(0);
   const [instructionDismissed, setInstructionDismissed] = useState(false);
-  
+  const instructionDismissedRef = useRef(false);
+
   // Animation values for instruction and counter
   const instructionOpacity = useRef(new Animated.Value(1)).current;
   const counterOpacity = useRef(new Animated.Value(0)).current;
@@ -154,8 +155,13 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
 
   const handleCountUp = () => {
     // Dismiss instruction on first interaction
-    if (count === 0 && !instructionDismissed) {
+    if (count === 0 && !instructionDismissedRef.current) {
+      // Set ref immediately to prevent multiple animations from rapid taps
+      instructionDismissedRef.current = true;
       setInstructionDismissed(true);
+      // Stop any existing animations before starting new ones
+      instructionOpacity.stopAnimation();
+      counterOpacity.stopAnimation();
       Animated.parallel([
         Animated.timing(instructionOpacity, {
           toValue: 0,
@@ -169,7 +175,7 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
         }),
       ]).start();
     }
-    
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setCount(prev => prev + 1);
 
@@ -200,6 +206,7 @@ export default function TasbihScreen({ resetBottomSheetRef, onResetConfirm }) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setCount(0);
     setInstructionDismissed(false);
+    instructionDismissedRef.current = false;
     // Reset rotation offset and bead order
     rotationOffsetRef.current = 0;
     beadOrderRef.current = Array.from({ length: BEAD_COUNT }, (_, i) => i);
