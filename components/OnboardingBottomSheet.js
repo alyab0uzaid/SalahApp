@@ -111,7 +111,8 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
     if (currentStep === 0) {
       return locationPermission === true;
     } else if (currentStep === 1) {
-      return notificationPermission === true;
+      // Notifications are optional - allow proceeding even if not granted
+      return true;
     } else if (currentStep === TOTAL_STEPS - 1) {
       return asrMethod !== null;
     }
@@ -331,9 +332,9 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
               color={COLORS.text.primary}
               style={styles.icon}
             />
-            <Text style={styles.title}>Prayer Notifications</Text>
+            <Text style={styles.title}>Prayer Notifications (Optional)</Text>
             <Text style={styles.description}>
-              Get notified when it's time for prayer so you never miss a salah.
+              Get notified when it's time for prayer so you never miss a salah. You can skip this and enable notifications later in settings.
             </Text>
             {notificationPermission === false && (
               <Pressable
@@ -355,6 +356,9 @@ const OnboardingBottomSheet = forwardRef(({ onComplete }, ref) => {
                 />
                 <Text style={styles.successText}>Notifications enabled</Text>
               </View>
+            )}
+            {notificationPermission === false && (
+              <Text style={styles.skipHint}>You can continue without enabling notifications</Text>
             )}
           </View>
         );
@@ -748,6 +752,14 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
     color: '#4CAF50',
+  },
+  skipHint: {
+    fontSize: FONTS.sizes.sm,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.tertiary,
+    textAlign: 'center',
+    marginTop: SPACING.md,
+    fontStyle: 'italic',
   },
   optionsContainer: {
     width: '100%',
