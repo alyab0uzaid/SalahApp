@@ -102,8 +102,9 @@ export default function OnboardingScreen({ onComplete }) {
   const canGoToNext = () => {
     // Check if we can proceed based on current step
     if (currentStep === 0) {
-      // Location permission step - need permission granted
-      return locationPermission === true;
+      // Location permission step - location is optional, allow proceeding
+      // User can enable location later in settings
+      return true;
     } else if (currentStep === 1) {
       // Notification permission step - notifications are optional, allow proceeding
       return true;
@@ -313,7 +314,7 @@ export default function OnboardingScreen({ onComplete }) {
             />
             <Text style={styles.title}>Location Access</Text>
             <Text style={styles.description}>
-              We need your location to calculate accurate prayer times for your area.
+              Enable location to automatically calculate accurate prayer times for your area. If you skip this, the app will use a default location that you can change later in settings.
             </Text>
             {locationPermission === false && (
               <Pressable
@@ -323,7 +324,7 @@ export default function OnboardingScreen({ onComplete }) {
                 ]}
                 onPress={handleLocationPermission}
               >
-                <Text style={styles.buttonText}>Grant Location Access</Text>
+                <Text style={styles.buttonText}>Continue</Text>
               </Pressable>
             )}
             {locationPermission === true && (
@@ -335,6 +336,9 @@ export default function OnboardingScreen({ onComplete }) {
                 />
                 <Text style={styles.successText}>Location access granted</Text>
               </View>
+            )}
+            {locationPermission === false && (
+              <Text style={styles.skipHint}>You can continue without enabling location</Text>
             )}
           </View>
         );
