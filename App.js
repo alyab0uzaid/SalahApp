@@ -238,24 +238,10 @@ export default function App() {
       const existing = await Location.getForegroundPermissionsAsync();
       let status = existing.status;
 
-      // If permission is not granted, use default location (Mecca) so app can still function
+      // If permission is not granted, wait (user might be in onboarding)
+      // Don't use default location - require permission for accurate prayer times
       if (status !== 'granted') {
-        // Use default location: Mecca, Saudi Arabia (21.4225° N, 39.8262° E)
-        const defaultLocation = {
-          coords: {
-            latitude: 21.4225,
-            longitude: 39.8262,
-            altitude: null,
-            accuracy: null,
-            altitudeAccuracy: null,
-            heading: null,
-            speed: null,
-          },
-          timestamp: Date.now(),
-        };
-        setLocation(defaultLocation);
-        setLocationName('Mecca, Saudi Arabia');
-        setLocationCountry('Saudi Arabia');
+        // Don't show error yet - user might grant permission during onboarding
         setLoading(false);
         return;
       }
@@ -815,8 +801,29 @@ export default function App() {
       {isContentReady && onboardingCompleted && (
         <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
           {(() => {
-            // Don't show error screen - app will use default location if permission denied
-            // Users can change location in settings if needed
+            // Show error screen if location failed and no prayer times
+            // This ensures app requires location for accurate prayer times
+            if (locationError && prayerTimes.length === 0) {
+              return (
+                <View style={[styles.container, styles.centerContent]}>
+                  <MaterialCommunityIcons
+                    name="map-marker-off"
+                    size={64}
+                    color={COLORS.text.secondary}
+                    style={{ marginBottom: SPACING.lg }}
+                  />
+                  <Text style={styles.errorText}>
+                    Location Required
+                  </Text>
+                  <Text style={[styles.errorText, { fontSize: FONTS.sizes.md, marginTop: SPACING.md }]}>
+                    This app needs your location to calculate accurate prayer times.
+                  </Text>
+                  <Text style={[styles.errorText, { fontSize: FONTS.sizes.sm, marginTop: SPACING.sm, color: COLORS.text.tertiary }]}>
+                    Please enable location in Settings to continue.
+                  </Text>
+                </View>
+              );
+            }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

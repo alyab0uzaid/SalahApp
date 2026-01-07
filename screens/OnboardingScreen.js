@@ -102,12 +102,13 @@ export default function OnboardingScreen({ onComplete }) {
   const canGoToNext = () => {
     // Check if we can proceed based on current step
     if (currentStep === 0) {
-      // Location permission step - location is optional, allow proceeding
-      // User can enable location later in settings
-      return true;
+      // Location is required for accurate prayer times
+      // Button says "Continue" (neutral) but permission must be granted to proceed
+      return locationPermission === true;
     } else if (currentStep === 1) {
-      // Notification permission step - notifications are optional, allow proceeding
-      return true;
+      // Notifications are required for prayer reminders
+      // Button says "Continue" (neutral) but permission must be granted to proceed
+      return notificationPermission === true;
     } else if (currentStep === TOTAL_STEPS - 1) {
       // Last step - need asrMethod selected
       return asrMethod !== null;
@@ -314,7 +315,7 @@ export default function OnboardingScreen({ onComplete }) {
             />
             <Text style={styles.title}>Location Access</Text>
             <Text style={styles.description}>
-              Enable location to automatically calculate accurate prayer times for your area. If you skip this, the app will use a default location that you can change later in settings.
+              We need your location to calculate accurate prayer times for your area. This is essential for the app to function properly.
             </Text>
             {locationPermission === false && (
               <Pressable
@@ -337,9 +338,6 @@ export default function OnboardingScreen({ onComplete }) {
                 <Text style={styles.successText}>Location access granted</Text>
               </View>
             )}
-            {locationPermission === false && (
-              <Text style={styles.skipHint}>You can continue without enabling location</Text>
-            )}
           </View>
         );
 
@@ -352,9 +350,9 @@ export default function OnboardingScreen({ onComplete }) {
               color={COLORS.text.primary}
               style={styles.icon}
             />
-            <Text style={styles.title}>Prayer Notifications (Optional)</Text>
+            <Text style={styles.title}>Prayer Notifications</Text>
             <Text style={styles.description}>
-              Get notified when it's time for prayer so you never miss a salah. You can skip this and enable notifications later in settings.
+              Get notified when it's time for prayer so you never miss a salah. This is essential for the app to remind you of prayer times.
             </Text>
             {notificationPermission === false && (
               <Pressable
@@ -364,7 +362,7 @@ export default function OnboardingScreen({ onComplete }) {
                 ]}
                 onPress={handleNotificationPermission}
               >
-                <Text style={styles.buttonText}>Enable Notifications</Text>
+                <Text style={styles.buttonText}>Continue</Text>
               </Pressable>
             )}
             {notificationPermission === true && (
@@ -376,9 +374,6 @@ export default function OnboardingScreen({ onComplete }) {
                 />
                 <Text style={styles.successText}>Notifications enabled</Text>
               </View>
-            )}
-            {notificationPermission === false && (
-              <Text style={styles.skipHint}>You can continue without enabling notifications</Text>
             )}
           </View>
         );
