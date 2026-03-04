@@ -27,8 +27,10 @@ import CustomAnglesScreen from './screens/CustomAnglesScreen';
 import PrayerAdjustmentsScreen from './screens/PrayerAdjustmentsScreen';
 import AsrMethodScreen from './screens/AsrMethodScreen';
 import DisplayTimeScreen from './screens/DisplayTimeScreen';
+import LocationScreen from './screens/LocationScreen';
 import TasbihScreen from './screens/TasbihScreen';
 import OnboardingScreen from './screens/OnboardingScreen';
+import LocationSetupScreen from './screens/LocationSetupScreen';
 import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
@@ -82,6 +84,10 @@ function SettingsStackNavigator({ onSettingsChange }) {
     return <DisplayTimeScreen {...props} onSettingsChange={onSettingsChange} />;
   };
 
+  const LocationComponent = (props) => {
+    return <LocationScreen {...props} />;
+  };
+
   return (
     <SettingsStack.Navigator
       screenOptions={{ headerShown: false }}
@@ -130,6 +136,11 @@ function SettingsStackNavigator({ onSettingsChange }) {
       <SettingsStack.Screen
         name="DisplayTime"
         component={DisplayTimeComponent}
+        options={{ headerShown: false }}
+      />
+      <SettingsStack.Screen
+        name="Location"
+        component={LocationComponent}
         options={{ headerShown: false }}
       />
     </SettingsStack.Navigator>
@@ -232,21 +243,14 @@ export default function App() {
     return formatTime(now);
   });
 
-  // Fetch location (call this after permission is granted)
+  // Fetch location - from GPS or manual city (App Store 5.1.5: app works without Location Services)
   const fetchLocation = async () => {
     try {
       const existing = await Location.getForegroundPermissionsAsync();
-      let status = existing.status;
+      const status = existing.status;
 
-      // If permission is not granted, wait (user might be in onboarding)
-      // Don't use default location - require permission for accurate prayer times
-      if (status !== 'granted') {
-        // Don't show error yet - user might grant permission during onboarding
-        setLoading(false);
-        return;
-      }
-
-        // Permission is granted, proceed with getting location
+      if (status === 'granted') {
+        // Permission granted - use GPS
         const withTimeout = (promise, ms) =>
           Promise.race([
             promise,
@@ -274,10 +278,19 @@ export default function App() {
               throw positionError;
             }
           } catch (fallbackError) {
-            setLocationError(
-              fallbackError.message ||
-                'Unable to get location. Make sure location is enabled and reload the app.'
-            );
+            const manualSettings = await getSettings();
+            if (manualSettings.manualLocation) {
+              const m = manualSettings.manualLocation;
+              setLocation({ coords: { latitude: m.latitude, longitude: m.longitude } });
+              setLocationName(m.city);
+              setLocationCountry(m.country || null);
+              setLocationError(null);
+            } else {
+              setLocationError(
+                fallbackError.message ||
+                  'Unable to get location. You can enter your city in Settings.'
+              );
+            }
             setLoading(false);
             return;
           }
@@ -322,14 +335,49 @@ export default function App() {
           setLocationName(`${locationData.coords.latitude.toFixed(2)}, ${locationData.coords.longitude.toFixed(2)}`);
         }
 
-      // Location successfully fetched, set loading to false
+        setLoading(false);
+        return;
+      }
+
+      // Permission not granted - use manual location if saved (5.1.5 compliance)
+      const settings = await getSettings();
+      if (settings.manualLocation) {
+        const m = settings.manualLocation;
+        setLocation({
+          coords: { latitude: m.latitude, longitude: m.longitude },
+        });
+        setLocationName(m.city);
+        setLocationCountry(m.country || null);
+        setLocationError(null);
+      }
       setLoading(false);
     } catch (error) {
-      setLocationError(error.message);
+      // On error, check for manual location as fallback
+      const settings = await getSettings();
+      if (settings.manualLocation) {
+        const m = settings.manualLocation;
+        setLocation({
+          coords: { latitude: m.latitude, longitude: m.longitude },
+        });
+        setLocationName(m.city);
+        setLocationCountry(m.country || null);
+        setLocationError(null);
+      } else {
+        setLocationError(error.message);
+      }
       setLoading(false);
-      return;
     }
   };
+
+  // Apply manual location from settings (called when user selects city in LocationSetupScreen)
+  const applyManualLocation = useCallback((manual) => {
+    setLocation({
+      coords: { latitude: manual.latitude, longitude: manual.longitude },
+    });
+    setLocationName(manual.city);
+    setLocationCountry(manual.country || null);
+    setLocationError(null);
+  }, []);
 
   // Try to fetch location on mount (will succeed if permission already granted)
   useEffect(() => {
@@ -638,6 +686,10 @@ export default function App() {
   const handleSettingsChange = useCallback(async () => {
     try {
       const settings = await getSettings();
+      const perm = await Location.getForegroundPermissionsAsync();
+      if (perm.status !== 'granted' && settings.manualLocation) {
+        applyManualLocation(settings.manualLocation);
+      }
       const newTimeFormat = settings.timeFormat || '12';
       const newDateFormat = settings.dateFormat || 'MM/DD/YYYY';
       const newCalculationMethod = settings.calculationMethod || 'MuslimWorldLeague';
@@ -672,7 +724,7 @@ export default function App() {
     } catch (error) {
       console.error('Error loading settings:', error);
     }
-  }, []);
+  }, [applyManualLocation]);
 
   // Handle prayer row press
   const handlePrayerPress = (prayer) => {
@@ -801,26 +853,11 @@ export default function App() {
       {isContentReady && onboardingCompleted && (
         <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
           {(() => {
-            // Show error screen if location failed and no prayer times
-            // This ensures app requires location for accurate prayer times
-            if (locationError && prayerTimes.length === 0) {
+            // App Store 5.1.5: Show manual city entry when no location (no blocking - app works without GPS)
+            if (!location && prayerTimes.length === 0) {
               return (
                 <View style={[styles.container, styles.centerContent]}>
-                  <MaterialCommunityIcons
-                    name="map-marker-off"
-                    size={64}
-                    color={COLORS.text.secondary}
-                    style={{ marginBottom: SPACING.lg }}
-                  />
-                  <Text style={styles.errorText}>
-                    Location Required
-                  </Text>
-                  <Text style={[styles.errorText, { fontSize: FONTS.sizes.md, marginTop: SPACING.md }]}>
-                    This app needs your location to calculate accurate prayer times.
-                  </Text>
-                  <Text style={[styles.errorText, { fontSize: FONTS.sizes.sm, marginTop: SPACING.sm, color: COLORS.text.tertiary }]}>
-                    Please enable location in Settings to continue.
-                  </Text>
+                  <LocationSetupScreen onLocationSet={applyManualLocation} />
                 </View>
               );
             }

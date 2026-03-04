@@ -1,12 +1,19 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import * as Haptics from 'expo-haptics';
 
 export default function SettingsScreen({ navigation, onSettingsChange }) {
   const insets = useSafeAreaInsets();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      onSettingsChange?.();
+    }, [onSettingsChange])
+  );
 
   // Main settings screen
   return (
@@ -23,6 +30,23 @@ export default function SettingsScreen({ navigation, onSettingsChange }) {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>PRAYER TIMES</Text>
           <View style={styles.settingsContainer}>
+            <Pressable
+              style={styles.settingButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                navigation?.navigate('Location');
+              }}
+            >
+              <View style={styles.settingButtonContent}>
+                <Text style={styles.settingLabel}>Location</Text>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={ICON_SIZES.md}
+                  color={COLORS.text.secondary}
+                />
+              </View>
+            </Pressable>
+            <View style={styles.separator} />
             <Pressable
               style={styles.settingButton}
               onPress={() => {

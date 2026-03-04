@@ -26,6 +26,9 @@ const DEFAULT_SETTINGS = {
     Isha: 0,
   },
   highLatitudeRule: 'MiddleOfTheNight', // Options: 'MiddleOfTheNight', 'SeventhOfTheNight', 'TwilightAngle'
+
+  // Manual location for when user declines GPS (App Store 5.1.5 compliance)
+  manualLocation: null, // { latitude, longitude, city, state, country } or null
 };
 
 /**

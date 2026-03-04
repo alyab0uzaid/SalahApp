@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Animated, Dimensions, TextInput, ScrollView, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import * as Location from 'expo-location';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
 import { updateSetting, getSettings } from '../utils/settingsStorage';
 import { requestNotificationPermissions } from '../utils/notifications';
+import { searchCity } from '../utils/geocoding';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const TOTAL_STEPS = 3; // 3 onboarding steps (location, notifications, asr)
@@ -16,6 +17,11 @@ export default function OnboardingScreen({ onComplete }) {
   const [showWelcome, setShowWelcome] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
   const [locationPermission, setLocationPermission] = useState(null);
+  const [manualLocation, setManualLocation] = useState(null); // { latitude, longitude, city, country }
+  const [citySearchQuery, setCitySearchQuery] = useState('');
+  const [citySearchResults, setCitySearchResults] = useState([]);
+  const [isSearchingCity, setIsSearchingCity] = useState(false);
+  const searchTimeoutRef = useRef(null);
   const [notificationPermission, setNotificationPermission] = useState(null);
   const [asrMethod, setAsrMethod] = useState(null); // No default selection
 
@@ -43,6 +49,12 @@ export default function OnboardingScreen({ onComplete }) {
     // Check location permission
     const locationStatus = await Location.getForegroundPermissionsAsync();
     setLocationPermission(locationStatus.status === 'granted');
+
+    // Check for saved manual location (App Store 5.1.5 - app works without GPS)
+    const settings = await getSettings();
+    if (settings.manualLocation) {
+      setManualLocation(settings.manualLocation);
+    }
 
     // Check notification permission
     try {
@@ -88,6 +100,45 @@ export default function OnboardingScreen({ onComplete }) {
     }
   };
 
+  // Search cities when user types (debounced)
+  useEffect(() => {
+    if (citySearchQuery.trim().length < 2) {
+      setCitySearchResults([]);
+      return;
+    }
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(async () => {
+      setIsSearchingCity(true);
+      const results = await searchCity(citySearchQuery, 5);
+      setCitySearchResults(results);
+      setIsSearchingCity(false);
+    }, 300);
+    return () => {
+      if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    };
+  }, [citySearchQuery]);
+
+  const handleSelectCity = async (result) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const manual = {
+      latitude: result.latitude,
+      longitude: result.longitude,
+      city: result.name,
+      state: result.state || '',
+      country: result.country,
+    };
+    setManualLocation(manual);
+    await updateSetting('manualLocation', manual);
+    setCitySearchQuery('');
+    setCitySearchResults([]);
+  };
+
+  const handleClearManualLocation = async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setManualLocation(null);
+    await updateSetting('manualLocation', null);
+  };
+
   const handleAsrMethodSelect = async (method) => {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -102,13 +153,11 @@ export default function OnboardingScreen({ onComplete }) {
   const canGoToNext = () => {
     // Check if we can proceed based on current step
     if (currentStep === 0) {
-      // Location is required for accurate prayer times
-      // Button says "Continue" (neutral) but permission must be granted to proceed
-      return locationPermission === true;
+      // App Store 5.1.5: App must work without Location Services - allow GPS OR manual city
+      return locationPermission === true || manualLocation !== null;
     } else if (currentStep === 1) {
-      // Notifications are required for prayer reminders
-      // Button says "Continue" (neutral) but permission must be granted to proceed
-      return notificationPermission === true;
+      // Notifications are optional - app works without them (user just won't get reminders)
+      return true;
     } else if (currentStep === TOTAL_STEPS - 1) {
       // Last step - need asrMethod selected
       return asrMethod !== null;
@@ -313,30 +362,77 @@ export default function OnboardingScreen({ onComplete }) {
               color={COLORS.text.primary}
               style={styles.icon}
             />
-            <Text style={styles.title}>Location Access</Text>
+            <Text style={styles.title}>Location</Text>
             <Text style={styles.description}>
-              We need your location to calculate accurate prayer times for your area. This is essential for the app to function properly.
+              Your location helps us calculate accurate prayer times. You can use your device location or enter a city manually.
             </Text>
-            {locationPermission === false && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.button,
-                  pressed && styles.buttonPressed,
-                ]}
-                onPress={handleLocationPermission}
-              >
-                <Text style={styles.buttonText}>Continue</Text>
-              </Pressable>
-            )}
-            {locationPermission === true && (
+            {locationPermission === true && !manualLocation && (
               <View style={styles.successContainer}>
                 <MaterialCommunityIcons
                   name="check-circle"
                   size={ICON_SIZES.lg}
                   color="#4CAF50"
                 />
-                <Text style={styles.successText}>Location access granted</Text>
+                <Text style={styles.successText}>Using your location</Text>
               </View>
+            )}
+            {manualLocation && (
+              <View style={styles.successContainer}>
+                <MaterialCommunityIcons
+                  name="check-circle"
+                  size={ICON_SIZES.lg}
+                  color="#4CAF50"
+                />
+                <Text style={styles.successText}>
+                  {[manualLocation.city, manualLocation.state, manualLocation.country].filter(Boolean).join(', ')}
+                </Text>
+                <Pressable
+                  style={({ pressed }) => [styles.changeLocationButton, pressed && styles.buttonPressed]}
+                  onPress={handleClearManualLocation}
+                >
+                  <Text style={styles.changeLocationText}>Change city</Text>
+                </Pressable>
+              </View>
+            )}
+            {!manualLocation && (
+              <>
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.button,
+                    pressed && styles.buttonPressed,
+                  ]}
+                  onPress={handleLocationPermission}
+                >
+                  <Text style={styles.buttonText}>Continue</Text>
+                </Pressable>
+                <Text style={styles.orText}>or enter your city</Text>
+                <TextInput
+                  style={styles.cityInput}
+                  placeholder="e.g. Austin, Texas or London, UK"
+                  placeholderTextColor={COLORS.text.tertiary}
+                  value={citySearchQuery}
+                  onChangeText={setCitySearchQuery}
+                />
+                {isSearchingCity && (
+                  <ActivityIndicator size="small" color={COLORS.text.secondary} style={styles.searchLoader} />
+                )}
+                {citySearchResults.length > 0 && !isSearchingCity && (
+                  <ScrollView style={styles.cityResults} nestedScrollEnabled>
+                    {citySearchResults.map((r, i) => (
+                      <Pressable
+                        key={i}
+                        style={({ pressed }) => [
+                          styles.cityResultItem,
+                          pressed && styles.cityResultItemPressed,
+                        ]}
+                        onPress={() => handleSelectCity(r)}
+                      >
+                        <Text style={styles.cityResultText}>{r.displayName}</Text>
+                      </Pressable>
+                    ))}
+                  </ScrollView>
+                )}
+              </>
             )}
           </View>
         );
@@ -680,6 +776,57 @@ const styles = StyleSheet.create({
     fontSize: FONTS.sizes.md,
     fontFamily: FONTS.weights.medium.primary,
     color: '#4CAF50',
+  },
+  orText: {
+    fontSize: FONTS.sizes.sm,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.tertiary,
+    marginTop: SPACING.lg,
+    marginBottom: SPACING.sm,
+  },
+  cityInput: {
+    width: '100%',
+    backgroundColor: COLORS.background.secondary,
+    borderWidth: 1,
+    borderColor: COLORS.border.primary,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.primary,
+  },
+  cityResults: {
+    width: '100%',
+    maxHeight: 160,
+    marginTop: SPACING.sm,
+  },
+  cityResultItem: {
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border.primary,
+  },
+  cityResultItemPressed: {
+    backgroundColor: COLORS.background.tertiary,
+  },
+  cityResultText: {
+    fontSize: FONTS.sizes.md,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.primary,
+  },
+  changeLocationButton: {
+    marginTop: SPACING.sm,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+  },
+  changeLocationText: {
+    fontSize: FONTS.sizes.sm,
+    fontFamily: FONTS.weights.regular.primary,
+    color: COLORS.text.tertiary,
+  },
+  searchLoader: {
+    marginTop: SPACING.sm,
   },
   skipHint: {
     fontSize: FONTS.sizes.sm,
