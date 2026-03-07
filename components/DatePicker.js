@@ -3,7 +3,13 @@ import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { COLORS, FONTS, SPACING, RADIUS, ICON_SIZES } from '../constants/theme';
-import 'hijri-date';
+import { toHijri } from 'hijri-converter';
+
+const HIJRI_MONTH_NAMES = [
+  'Muharram', 'Safar', 'Rabi\' al-awwal', 'Rabi\' al-thani',
+  'Jumada al-awwal', 'Jumada al-thani', 'Rajab', 'Sha\'ban',
+  'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
+];
 
 const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress }) => {
   const formatDate = (date) => {
@@ -18,22 +24,12 @@ const DatePickerComponent = ({ selectedDate, onDateChange, style, onDatePress })
 
   const getHijriDate = (date) => {
     try {
-      // The hijri-date library extends Date with toHijri() method
-      if (typeof date.toHijri === 'function') {
-        const hijri = date.toHijri();
-        const monthNames = [
-          'Muharram', 'Safar', 'Rabi\' al-awwal', 'Rabi\' al-thani',
-          'Jumada al-awwal', 'Jumada al-thani', 'Rajab', 'Sha\'ban',
-          'Ramadan', 'Shawwal', 'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
-        ];
-        
-        const day = hijri.getDate();
-        const month = hijri.getMonth();
-        const year = hijri.getFullYear();
-        
-        return `${day} ${monthNames[month]} ${year} AH`;
-      }
-      return '';
+      const gYear = date.getFullYear();
+      const gMonth = date.getMonth() + 1;
+      const gDay = date.getDate();
+      const { hy, hm, hd } = toHijri(gYear, gMonth, gDay);
+      const monthName = HIJRI_MONTH_NAMES[hm - 1];
+      return `${hd} ${monthName} ${hy} AH`;
     } catch (error) {
       return '';
     }

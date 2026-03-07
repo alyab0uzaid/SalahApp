@@ -22,7 +22,7 @@ const TOP_DOT_X = CIRCLE_CENTER_X;
 const TOP_DOT_Y = CIRCLE_CENTER_Y - CIRCLE_RADIUS;
 
 // Alignment threshold
-const ALIGNMENT_THRESHOLD = 25;
+const ALIGNMENT_THRESHOLD = 10;
 
 // Calculate the direction to Qibla from current geographic location
 const calculateQibla = (latitude, longitude) => {
