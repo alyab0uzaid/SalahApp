@@ -8,7 +8,7 @@ export function SettingsProvider({ children }) {
     calculationMethod: 'MuslimWorldLeague',
     asrMethod: 'Standard',
     highLatitudeRule: 'MiddleOfTheNight',
-    calculationMethodAuto: false,
+    calculationMethodAuto: true,
     customAngles: null,
     prayerAdjustments: null,
     timeFormat: '12',

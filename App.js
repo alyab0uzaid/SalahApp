@@ -14,6 +14,7 @@ import { SettingsProvider } from './contexts/SettingsContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as Location from 'expo-location';
+import Constants from 'expo-constants';
 import * as Adhan from 'adhan';
 import HomeScreen from './screens/HomeScreen';
 import QiblaScreen from './screens/QiblaScreen';
@@ -39,6 +40,8 @@ import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
 import { getSettings, getPrayerStatus, savePrayerStatus, getMethodForCountry, updateSetting } from './utils/settingsStorage';
+import { checkUpdateRequired } from './utils/versionCheck';
+import ForceUpdateScreen from './components/ForceUpdateScreen';
 import { requestNotificationPermissions, schedulePrayerNotifications, sendTestNotification } from './utils/notifications';
 
 const Tab = createBottomTabNavigator();
@@ -237,6 +240,9 @@ export default function App() {
   const loadingOpacity = useRef(new Animated.Value(1)).current;
   const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
 
+  // Force-update check: block app if version is too old
+  const [updateRequired, setUpdateRequired] = useState(null); // null = checking, true = block, false = ok
+
   // Get current time and update it every 10 seconds
   const [currentTime, setCurrentTime] = useState(() => {
     const now = new Date();
@@ -285,6 +291,13 @@ export default function App() {
               setLocationName(m.city);
               setLocationCountry(m.country || null);
               setLocationError(null);
+              if (manualSettings.calculationMethodAuto && m.country) {
+                const recommendedMethod = getMethodForCountry(m.country);
+                if (recommendedMethod !== manualSettings.calculationMethod) {
+                  await updateSetting('calculationMethod', recommendedMethod);
+                  setCalculationSettings(prev => ({ ...prev, calculationMethod: recommendedMethod }));
+                }
+              }
             } else {
               setLocationError(
                 fallbackError.message ||
@@ -349,6 +362,13 @@ export default function App() {
         setLocationName(m.city);
         setLocationCountry(m.country || null);
         setLocationError(null);
+        if (settings.calculationMethodAuto && m.country) {
+          const recommendedMethod = getMethodForCountry(m.country);
+          if (recommendedMethod !== settings.calculationMethod) {
+            await updateSetting('calculationMethod', recommendedMethod);
+            setCalculationSettings(prev => ({ ...prev, calculationMethod: recommendedMethod }));
+          }
+        }
       }
       setLoading(false);
     } catch (error) {
@@ -362,6 +382,13 @@ export default function App() {
         setLocationName(m.city);
         setLocationCountry(m.country || null);
         setLocationError(null);
+        if (settings.calculationMethodAuto && m.country) {
+          const recommendedMethod = getMethodForCountry(m.country);
+          if (recommendedMethod !== settings.calculationMethod) {
+            await updateSetting('calculationMethod', recommendedMethod);
+            setCalculationSettings(prev => ({ ...prev, calculationMethod: recommendedMethod }));
+          }
+        }
       } else {
         setLocationError(error.message);
       }
@@ -370,18 +397,42 @@ export default function App() {
   };
 
   // Apply manual location from settings (called when user selects city in LocationSetupScreen)
-  const applyManualLocation = useCallback((manual) => {
+  const applyManualLocation = useCallback(async (manual) => {
     setLocation({
       coords: { latitude: manual.latitude, longitude: manual.longitude },
     });
     setLocationName(manual.city);
     setLocationCountry(manual.country || null);
     setLocationError(null);
+    if (manual.country) {
+      try {
+        const settings = await getSettings();
+        if (settings.calculationMethodAuto) {
+          const recommendedMethod = getMethodForCountry(manual.country);
+          if (recommendedMethod !== settings.calculationMethod) {
+            await updateSetting('calculationMethod', recommendedMethod);
+            setCalculationSettings(prev => ({ ...prev, calculationMethod: recommendedMethod }));
+          }
+        }
+      } catch (e) {
+        console.error('Error auto-detecting calculation method:', e);
+      }
+    }
   }, []);
 
   // Try to fetch location on mount (will succeed if permission already granted)
   useEffect(() => {
     fetchLocation();
+  }, []);
+
+  // Force-update check on mount
+  useEffect(() => {
+    const run = async () => {
+      const version = Constants.expoConfig?.version ?? Constants.manifest?.version ?? '1.0.0';
+      const { updateRequired: required } = await checkUpdateRequired(version);
+      setUpdateRequired(required);
+    };
+    run();
   }, []);
 
   // Load settings and prayer status on mount
@@ -844,6 +895,16 @@ export default function App() {
 
   // Check if content is ready to render
   const isContentReady = fontsLoaded && !loading && minLoadingComplete;
+
+  // Block app if update required
+  if (updateRequired === true) {
+    return (
+      <SafeAreaProvider>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
+        <ForceUpdateScreen />
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SettingsProvider>

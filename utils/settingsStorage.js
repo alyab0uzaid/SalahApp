@@ -6,7 +6,7 @@ const SETTINGS_KEY = '@SalahApp:settings';
 const DEFAULT_SETTINGS = {
   calculationMethod: 'MuslimWorldLeague',
   asrMethod: null, // 'Standard' or 'Hanafi' - null means not set yet
-  calculationMethodAuto: false, // Auto-detect calculation method
+  calculationMethodAuto: true, // Auto-detect calculation method based on location
   timeFormat: '12', // '12' for 12-hour (AM/PM) or '24' for 24-hour
   dateFormat: 'MM/DD/YYYY', // Date format preference
   onboardingCompleted: false, // Whether user has completed onboarding
