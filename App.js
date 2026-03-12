@@ -1,5 +1,6 @@
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View, Text, ActivityIndicator, Animated, Pressable } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { StyleSheet, View, Text, ActivityIndicator, Animated, Pressable, Image } from 'react-native';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useFonts } from 'expo-font';
 import { SpaceGrotesk_400Regular, SpaceGrotesk_500Medium, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
@@ -36,7 +37,6 @@ import PrayerDetailsBottomSheet from './components/PrayerDetailsBottomSheet';
 import DatePickerBottomSheet from './components/DatePickerBottomSheet';
 import PrayerStatusBottomSheet from './components/PrayerStatusBottomSheet';
 import ResetConfirmBottomSheet from './components/ResetConfirmBottomSheet';
-import LoadingScreen from './components/LoadingScreen';
 import { formatTime, formatPrayerTime } from './utils/timeUtils';
 import { COLORS, FONTS, SPACING, ICON_SIZES } from './constants/theme';
 import { getSettings, getPrayerStatus, savePrayerStatus, getMethodForCountry, updateSetting } from './utils/settingsStorage';
@@ -235,10 +235,8 @@ export default function App() {
 
   // Animated background color for Qibla alignment
   const qiblaBgOpacity = useRef(new Animated.Value(0)).current;
-
-  // Animated opacity for loading screen fade-out
-  const loadingOpacity = useRef(new Animated.Value(1)).current;
-  const [loadingFadeComplete, setLoadingFadeComplete] = useState(false);
+  const splashOpacity = useRef(new Animated.Value(1)).current;
+  const [showSplashOverlay, setShowSplashOverlay] = useState(true);
 
   // Force-update check: block app if version is too old
   const [updateRequired, setUpdateRequired] = useState(null); // null = checking, true = block, false = ok
@@ -474,14 +472,8 @@ export default function App() {
 
   // Handle onboarding completion
   const handleOnboardingComplete = async () => {
-    // Mark onboarding as completed (this will hide onboarding and show loading screen)
     setOnboardingCompleted(true);
     setLoading(true);
-    setLoadingFadeComplete(false);
-
-    // Reset minimum loading timer so loading screen shows for full duration
-    setMinLoadingComplete(false);
-    appStartTimeRef.current = Date.now(); // Reset start time for minimum loading duration
 
     // Fetch location now that permission should be granted
     await fetchLocation();
@@ -687,7 +679,7 @@ export default function App() {
   useEffect(() => {
     // Only run timer when minLoadingComplete is false (initial load or after onboarding)
     if (!minLoadingComplete) {
-      const minLoadingDuration = 1500; // 1.5 seconds
+      const minLoadingDuration = 1000; // 1 second minimum
       const elapsed = Date.now() - appStartTimeRef.current;
       const remainingTime = Math.max(0, minLoadingDuration - elapsed);
 
@@ -699,30 +691,18 @@ export default function App() {
     }
   }, [minLoadingComplete]);
 
-  // Handle fade transition when loading is complete
+  // Hide splash (native + overlay) when app is ready, with fade-out
   useEffect(() => {
-    // Check if app is ready
     const isReady = fontsLoaded && !loading && minLoadingComplete;
-
-    if (isReady && !loadingFadeComplete) {
-      // App is ready - fade out loading screen normally
-      // Ensure opacity is at 1 before starting fade (in case it was set to 0)
-      if (loadingOpacity._value === 0) {
-        loadingOpacity.setValue(1);
-      }
-
-      // Small delay to ensure content is rendered before fading
-      setTimeout(() => {
-        Animated.timing(loadingOpacity, {
+    if (isReady) {
+      SplashScreen.hideAsync();
+      Animated.timing(splashOpacity, {
           toValue: 0,
           duration: 400,
           useNativeDriver: true,
-        }).start(() => {
-          setLoadingFadeComplete(true);
-        });
-      }, 50);
+        }).start(() => setShowSplashOverlay(false));
     }
-  }, [fontsLoaded, loading, minLoadingComplete, loadingFadeComplete]);
+  }, [fontsLoaded, loading, minLoadingComplete]);
 
   // Handle Qibla background color change
   const handleQiblaBackgroundChange = (isAligned) => {
@@ -912,7 +892,7 @@ export default function App() {
         <StatusBar style="light" translucent backgroundColor="transparent" />
       {/* Main content - rendered when ready and onboarding is completed */}
       {isContentReady && onboardingCompleted && (
-        <View style={StyleSheet.absoluteFill} pointerEvents={loadingFadeComplete ? 'auto' : 'none'}>
+        <View style={StyleSheet.absoluteFill} pointerEvents="auto">
           {(() => {
             // App Store 5.1.5: Show manual city entry when no location (no blocking - app works without GPS)
             if (!location && prayerTimes.length === 0) {
@@ -1137,23 +1117,17 @@ export default function App() {
           })()}
         </View>
       )}
-      {/* Loading screen - show during initial load when not ready yet, OR when onboarding is active */}
-      {fontsLoaded && (!isContentReady || !onboardingCompleted) && (
-        <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]}>
-          <LoadingScreen />
-        </View>
-      )}
-      {/* Animated loading screen fade - always show when content is ready and fade not complete */}
-      {isContentReady && onboardingCompleted && !loadingFadeComplete && (
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: loadingOpacity, zIndex: 1000 }]}>
-          <LoadingScreen />
-        </Animated.View>
-      )}
-      {/* Onboarding screen - shows on top of loading screen on first launch */}
+      {/* Onboarding screen - shows on first launch (native splash stays visible underneath until ready) */}
       {!onboardingCompleted && fontsLoaded && (
         <View style={[StyleSheet.absoluteFill, { zIndex: 2000 }]}>
           <OnboardingScreen onComplete={handleOnboardingComplete} />
         </View>
+      )}
+      {/* Splash overlay - black bg + centered logo, fades out when ready (works in Expo Go & dev) */}
+      {showSplashOverlay && (
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000000', justifyContent: 'center', alignItems: 'center', zIndex: 3000, opacity: splashOpacity }]}>
+          <Image source={require('./assets/splash-salah.png')} style={{ width: 140, height: 56 }} resizeMode="contain" />
+        </Animated.View>
       )}
       </SafeAreaProvider>
     </SettingsProvider>
